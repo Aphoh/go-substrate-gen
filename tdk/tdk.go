@@ -24,7 +24,7 @@ type MType struct {
 
 type MTypeInfo struct {
 	Path   []string                   `json:"path"`
-	Params []MTypeParam `json:"params"`
+	Params []MTypeParam               `json:"params"`
 	Def    map[string]json.RawMessage `json:"def"`
 	Docs   []string                   `json:"docs"`
 }
