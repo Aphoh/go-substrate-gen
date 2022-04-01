@@ -1,0 +1,21 @@
+{
+  "name": "go-substrate-gen-json",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "generate": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/aphoh/go-substrate-gen"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.6.3"
+  },
+  "dependencies": {
+    "@polkadot/api": "^7.14.4-7"
+  }
+}
