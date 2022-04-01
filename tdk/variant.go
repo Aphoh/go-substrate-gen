@@ -1,6 +1,5 @@
 package tdk
 
-const TDKSequence = "Sequence"
 
 type TDVariant struct {
 	Variants []TDVariantElem `json:"variants"`

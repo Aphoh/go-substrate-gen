@@ -28,7 +28,7 @@ func TestCompositeParsesBasic(t *testing.T) {
     Fields: []TDField{
       {
       	Name:     "",
-      	Type:     "1",
+      	TypeId:     "1",
       	TypeName: "[u8; 32]",
       	Docs:     []string{},
       },
