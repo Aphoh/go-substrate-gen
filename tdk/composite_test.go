@@ -24,14 +24,14 @@ func TestCompositeParsesBasic(t *testing.T) {
 	err := json.Unmarshal([]byte(compositeJson), &comp)
 	assert.NoError(t, err)
 
-  assert.Equal(t, comp, TDComposite{
-    Fields: []TDField{
-      {
-      	Name:     "",
-      	TypeId:     "1",
-      	TypeName: "[u8; 32]",
-      	Docs:     []string{},
-      },
-    },
-  })
+	assert.Equal(t, comp, TDComposite{
+		Fields: []TDField{
+			{
+				Name:     "",
+				TypeId:   "1",
+				TypeName: "[u8; 32]",
+				Docs:     []string{},
+			},
+		},
+	})
 }

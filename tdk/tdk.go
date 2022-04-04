@@ -34,44 +34,39 @@ type MTypeParam struct {
 	Type *string `json:"type"`
 }
 
-func (mt *MTypeInfo) GetTypeDef() (interface{}, error) {
+func (mt *MTypeInfo) GetTypeName() (string, error) {
 	keys := []string{}
 	for k := range mt.Def {
 		keys = append(keys, k)
 	}
 	if len(keys) != 1 {
 		b, _ := json.Marshal(mt)
-		return nil, fmt.Errorf("Multiple or no types in one typedef, %s", string(b))
+		return "", fmt.Errorf("Multiple or no types in one typedef, %s", string(b))
 	}
-	typeName := keys[0]
-	raw := mt.Def[typeName]
+	return keys[0], nil
+}
 
-	var res interface{}
-	var err error
+func (mt *MTypeInfo) GetComposite() (*TDComposite, error) {
+	var res TDComposite
+	err := json.Unmarshal(mt.Def[TDKComposite], &res)
+	return &res, err
+}
 
-	switch typeName {
-	case TDKArray:
-		res = TDArray{}
-	case TDKBitSequence:
-		panic("Unsupported")
-	case TDKCompact:
-		res = TDCompact{}
-	case TDKComposite:
-		res = TDComposite{}
-	case TDKPrimitive:
-		res = ""
-	case TDKSequence:
-		res = TDSequence{}
-	case TDKTuple:
-		res = []TDTuple{}
-	case TDKVariant:
-		res = TDVariant{}
-	default:
-		return nil, fmt.Errorf("Unknown type %s", keys[0])
-	}
+func (mt *MTypeInfo) GetPrimitive() (*TDPrimitive, error) {
+	var res TDPrimitive
+	err := json.Unmarshal(mt.Def[TDKPrimitive], &res)
+	return &res, err
+}
 
-	err = json.Unmarshal(raw, &res)
-	return res, err
+func (mt *MTypeInfo) GetArray() (*TDArray, error) {
+	var res TDArray
+	err := json.Unmarshal(mt.Def[TDKArray], &res)
+	return &res, err
+}
+
+type TDArray struct {
+	Len    string `json:"len"`
+	TypeId string `json:"type"`
 }
 
 type TDPrimitive string
@@ -85,4 +80,25 @@ type TDTuple []string
 
 type TDCompact struct {
 	TypeId string `json:"type"`
+}
+
+type TDField struct {
+	Name     string   `json:"name"`
+	TypeId   string   `json:"type"` // This is the id of the type that this contains
+	TypeName string   `json:"typeName"`
+	Index    string   `json:"index"`
+	Docs     []string `json:"docs"`
+}
+
+type TDComposite struct {
+	Fields []TDField `json:"fields"`
+}
+
+type TDVariant struct {
+	Variants []TDVariantElem `json:"variants"`
+}
+
+type TDVariantElem struct {
+	Name   string    `json:"name"`
+	Fields []TDField `json:"fields"`
 }

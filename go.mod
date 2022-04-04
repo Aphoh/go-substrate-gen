@@ -7,6 +7,7 @@ require github.com/stretchr/testify v1.7.1
 require (
 	github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible // indirect
 	github.com/cweill/gotests v1.6.0 // indirect
+	github.com/dave/jennifer v1.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect
@@ -15,7 +16,7 @@ require (
 	github.com/pierrec/xxHash v0.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.8.2 // indirect
-	github.com/stretchr/objx v0.1.1 // indirect
+	github.com/stretchr/objx v0.3.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect

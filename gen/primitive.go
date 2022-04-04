@@ -4,21 +4,16 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/tdk"
-	ctypes "github.com/centrifuge/go-substrate-rpc-client/types"
 )
 
-type GenPrimitiveResult struct {
-  Name string
-}
-
-func GenPrimitive(primitive tdk.TDPrimitive) (GenPrimitiveResult, error) {
-	switch primitive {
+func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, id string) (*gend, error) {
+	switch *primitive {
 	case "U8":
-    ctypes.NewU8(0)
-    return GenPrimitiveResult{
-    	Name: "ctypes.U8",
-    }, nil
+		return &gend{
+			name: "byte",
+			id:   id,
+		}, nil
 	default:
-		return GenPrimitiveResult{}, fmt.Errorf("Unsupported primitive %s", primitive)
+		return &gend{}, fmt.Errorf("Unsupported primitive %s", string(*primitive))
 	}
 }
