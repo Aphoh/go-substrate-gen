@@ -2,6 +2,7 @@ package gen
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 
 	"github.com/aphoh/go-substrate-gen/metadata"
@@ -76,5 +77,18 @@ func TestGenSmallMetadata(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Printf("%#v", tg.f)
 	t.Log(g)
+	t.Fail()
+}
+
+func TestGenBigMetadata(t *testing.T) {
+	inp, err := ioutil.ReadFile("../json-gen/meta.json")
+	require.NoError(t, err)
+	mr, err := metadata.ParseMetadata(inp)
+
+	tg := NewTypeGenerator(&mr, "example")
+	res, err := tg.GenAll()
+
+	println(res)
+
 	t.Fail()
 }

@@ -12,6 +12,7 @@ require (
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
+	github.com/gobeam/stringy v0.0.5 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/pierrec/xxHash v0.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

@@ -8,28 +8,19 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, id string, path []string) (*gend, error) {
+func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend, error) {
 	// name struct id_pathname. Ex: 2_
-	sName := path[len(path)-1] + "_" + id
+	path := mt.Ty.Path
+	id := mt.Id
+	sName := asName(mt.Ty.Path...)
 	code := []jen.Code{}
 	for i, field := range v.Fields {
-		name := field.Name
-		if name == "" {
-			name = fmt.Sprintf("Field%d", i)
-		}
-		tyName, err := tg.GetType(field.TypeId)
-		_ = tyName
+		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
+		fc, err := tg.fieldCode(field, "", fmt.Sprint(i))
 		if err != nil {
 			return nil, err
 		}
-		// Make some comments
-		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
-		// Add the docs
-		for _, d := range field.Docs {
-			code = append(code, jen.Comment(d))
-		}
-		// Add the field
-		code = append(code, jen.Id(name).Id(tyName.name))
+		code = append(code, fc...)
 	}
 
 	// Write new struct with all ids
@@ -43,4 +34,27 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, id string, path []stri
 
 	tg.generated[id] = g
 	return &g, nil
+}
+
+func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen.Code, error) {
+	fieldName := f.Name
+	if fieldName == "" {
+		fieldName = asName(prefix, "Field", postfix)
+	}
+	code := []jen.Code{}
+
+	// Add the docs
+	for _, d := range f.Docs {
+		code = append(code, jen.Comment(d))
+	}
+
+	tyName, err := tg.GetType(f.TypeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the field
+	code = append(code, jen.Id(fieldName).Id(tyName.name))
+
+	return code, nil
 }

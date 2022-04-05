@@ -16,14 +16,14 @@ type gend struct {
 type TypeGenerator struct {
 	f         *jen.File
 	pkgPath   string
-	mtypes    map[string]tdk.MTypeInfo
+	mtypes    map[string]tdk.MType
 	generated map[string]gend
 }
 
 func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
-	mtypes := map[string]tdk.MTypeInfo{}
+	mtypes := map[string]tdk.MType{}
 	for _, tdef := range meta.Lookup.Types {
-		mtypes[tdef.Id] = tdef.Ty
+		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
 	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]gend{}}
@@ -36,31 +36,46 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 	// gend does not exist, we must generate it
 
 	mt := tg.mtypes[id]
-	tn, err := mt.GetTypeName()
+	tn, err := mt.Ty.GetTypeName()
 	if err != nil {
 		return nil, err
 	}
 
 	switch tn {
 	case tdk.TDKPrimitive:
-		prim, err := mt.GetPrimitive()
+		prim, err := mt.Ty.GetPrimitive()
 		if err != nil {
 			return nil, err
 		}
 		return tg.GenPrimitive(prim, id)
 	case tdk.TDKArray:
-		v, err := mt.GetArray()
+		v, err := mt.Ty.GetArray()
 		if err != nil {
 			return nil, err
 		}
 		return tg.GenArray(v, id)
 	case tdk.TDKComposite:
-		v, err := mt.GetComposite()
+		v, err := mt.Ty.GetComposite()
 		if err != nil {
 			return nil, err
 		}
-		return tg.GenComposite(v, id, mt.Path)
+		return tg.GenComposite(v, &mt)
+	case tdk.TDKVariant:
+		v, err := mt.Ty.GetVariant()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenVariant(v, &mt)
 	default:
-		panic(fmt.Sprintf("Got bad type name=%v", tn))
+		return nil, fmt.Errorf("Got bad type name=%v\n", tn)
 	}
+}
+
+func (tg *TypeGenerator) GenAll() (string, error) {
+	for id := range tg.mtypes {
+		if _, err := tg.GetType(id); err != nil {
+			println("Got error getting type", "type", id, "err", err.Error())
+		}
+	}
+	return fmt.Sprintf("%#v", tg.f), nil
 }

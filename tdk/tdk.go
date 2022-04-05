@@ -46,6 +46,12 @@ func (mt *MTypeInfo) GetTypeName() (string, error) {
 	return keys[0], nil
 }
 
+func (mt *MTypeInfo) GetArray() (*TDArray, error) {
+	var res TDArray
+	err := json.Unmarshal(mt.Def[TDKArray], &res)
+	return &res, err
+}
+
 func (mt *MTypeInfo) GetComposite() (*TDComposite, error) {
 	var res TDComposite
 	err := json.Unmarshal(mt.Def[TDKComposite], &res)
@@ -58,9 +64,9 @@ func (mt *MTypeInfo) GetPrimitive() (*TDPrimitive, error) {
 	return &res, err
 }
 
-func (mt *MTypeInfo) GetArray() (*TDArray, error) {
-	var res TDArray
-	err := json.Unmarshal(mt.Def[TDKArray], &res)
+func (mt *MTypeInfo) GetVariant() (*TDVariant, error) {
+	var res TDVariant
+	err := json.Unmarshal(mt.Def[TDKVariant], &res)
 	return &res, err
 }
 
