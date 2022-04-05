@@ -88,7 +88,7 @@ func TestGenBigMetadata(t *testing.T) {
 	tg := NewTypeGenerator(&mr, "example")
 	res, err := tg.GenAll()
 
-	println(res)
+	ioutil.WriteFile("test_out.go", []byte(res), 0644)
 
 	t.Fail()
 }

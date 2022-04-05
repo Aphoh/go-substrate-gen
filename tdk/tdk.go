@@ -64,6 +64,18 @@ func (mt *MTypeInfo) GetPrimitive() (*TDPrimitive, error) {
 	return &res, err
 }
 
+func (mt *MTypeInfo) GetSequence() (*TDSequence, error) {
+	var res TDSequence
+	err := json.Unmarshal(mt.Def[TDKSequence], &res)
+	return &res, err
+}
+
+func (mt *MTypeInfo) GetTuple() (*TDTuple, error) {
+	var res TDTuple
+	err := json.Unmarshal(mt.Def[TDKTuple], &res)
+	return &res, err
+}
+
 func (mt *MTypeInfo) GetVariant() (*TDVariant, error) {
 	var res TDVariant
 	err := json.Unmarshal(mt.Def[TDKVariant], &res)

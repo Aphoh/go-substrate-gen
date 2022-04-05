@@ -42,12 +42,6 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 	}
 
 	switch tn {
-	case tdk.TDKPrimitive:
-		prim, err := mt.Ty.GetPrimitive()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenPrimitive(prim, id)
 	case tdk.TDKArray:
 		v, err := mt.Ty.GetArray()
 		if err != nil {
@@ -60,6 +54,24 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 			return nil, err
 		}
 		return tg.GenComposite(v, &mt)
+	case tdk.TDKSequence:
+		v, err := mt.Ty.GetSequence()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenSequence(v, &mt)
+	case tdk.TDKPrimitive:
+		prim, err := mt.Ty.GetPrimitive()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenPrimitive(prim, id)
+	case tdk.TDKTuple:
+		tup, err := mt.Ty.GetTuple()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenTuple(tup, &mt)
 	case tdk.TDKVariant:
 		v, err := mt.Ty.GetVariant()
 		if err != nil {
