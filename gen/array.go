@@ -12,8 +12,10 @@ func (tg *TypeGenerator) GenArray(arr *tdk.TDArray, id string) (*gend, error) {
 		return nil, err
 	}
 	name := fmt.Sprintf("[%v]%v", arr.Len, tyGend.name)
-	return &gend{
+  g := gend{
 		id:   id,
 		name: name,
-	}, nil
+	}
+  tg.generated[id] = g
+  return &g, nil
 }

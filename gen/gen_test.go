@@ -85,7 +85,7 @@ func TestGenBigMetadata(t *testing.T) {
 	require.NoError(t, err)
 	mr, err := metadata.ParseMetadata(inp)
 
-	tg := NewTypeGenerator(&mr, "example")
+	tg := NewTypeGenerator(&mr, "gen")
 	res, err := tg.GenAll()
 
 	ioutil.WriteFile("test_out.go", []byte(res), 0644)

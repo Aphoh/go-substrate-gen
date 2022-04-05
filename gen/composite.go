@@ -10,9 +10,30 @@ import (
 
 func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend, error) {
 	// name struct id_pathname. Ex: 2_
-	path := mt.Ty.Path
-	id := mt.Id
-	sName := asName(mt.Ty.Path...)
+
+	if len(mt.Ty.Path) == 1 {
+    // Account for pointer types that just wrap
+		switch mt.Ty.Path[0] {
+		case "Cow":
+			fgen, err := tg.GetType(v.Fields[0].TypeId)
+			if err != nil {
+				return nil, err
+			}
+			g := gend{
+				name: fgen.name,
+				id:   mt.Id,
+			}
+			tg.generated[mt.Id] = g
+			return &g, nil
+
+		}
+	}
+
+	g, err := tg.getStructName(mt)
+	if err != nil {
+		return nil, err
+	}
+
 	code := []jen.Code{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
@@ -24,23 +45,19 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend,
 	}
 
 	// Write new struct with all ids
-	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(path, "_"), id))
-	tg.f.Type().Id(sName).Struct(code...)
+	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(mt.Ty.Path, "_"), mt.Id))
+	tg.f.Type().Id(g.name).Struct(code...)
 
-	g := gend{
-		id:   id,
-		name: sName,
-	}
-
-	tg.generated[id] = g
-	return &g, nil
+	return g, nil
 }
 
 func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen.Code, error) {
 	fieldName := f.Name
 	if fieldName == "" {
-		fieldName = asName(prefix, "Field", postfix)
+		fieldName = "Field"
 	}
+	fieldName = asName(prefix, fieldName, postfix)
+
 	code := []jen.Code{}
 
 	// Add the docs
@@ -48,13 +65,18 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 		code = append(code, jen.Comment(d))
 	}
 
-	tyName, err := tg.GetType(f.TypeId)
+	fieldTy, err := tg.GetType(f.TypeId)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add the field
-	code = append(code, jen.Id(fieldName).Id(tyName.name))
+	// If it's a rust pointer, use a pointer to avoid recursive structs
+	if strings.HasPrefix(f.TypeName, "Box") {
+		code = append(code, jen.Id(fieldName).Op("*").Id(fieldTy.name))
+	} else {
+		code = append(code, jen.Id(fieldName).Id(fieldTy.name))
+	}
 
 	return code, nil
 }

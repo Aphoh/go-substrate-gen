@@ -26,5 +26,6 @@ func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, id string) (*g
 	default:
 		return nil, fmt.Errorf("Unsupported primitive %s", string(*primitive))
 	}
+  tg.generated[id] = g
 	return &g, nil
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+const CTypes = "github.com/centrifuge/go-substrate-rpc-client/types"
+
 type gend struct {
 	id   string
 	name string
@@ -18,6 +20,7 @@ type TypeGenerator struct {
 	pkgPath   string
 	mtypes    map[string]tdk.MType
 	generated map[string]gend
+	nameCount map[string]uint32
 }
 
 func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
@@ -26,7 +29,10 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
-	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]gend{}}
+	f.ImportAlias("github.com/centrifuge/go-substrate-rpc-client/types", "ctypes")
+	f.Comment("Add dummy variable so jennifer keeps the imports")
+	f.Var().Id("_").Op("=").Qual(CTypes, "NewU8").Call(jen.Lit(0))
+	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]gend{}, nameCount: map[string]uint32{}}
 }
 
 func (tg *TypeGenerator) GetType(id string) (*gend, error) {
@@ -48,6 +54,12 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 			return nil, err
 		}
 		return tg.GenArray(v, id)
+	case tdk.TDKCompact:
+		v, err := mt.Ty.GetCompact()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenCompact(v, &mt)
 	case tdk.TDKComposite:
 		v, err := mt.Ty.GetComposite()
 		if err != nil {
@@ -81,6 +93,46 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 	default:
 		return nil, fmt.Errorf("Got bad type name=%v\n", tn)
 	}
+}
+
+func (tg *TypeGenerator) getStructName(mt *tdk.MType) (*gend, error) {
+	nameParams := append([]string{}, mt.Ty.Path...)
+	sName := asName(nameParams...)
+  // Add params, stopping if its unique
+	if tg.nameCount[sName] != 0 {
+		for _, p := range mt.Ty.Params {
+			if p.Type != nil {
+				pgend, err := tg.GetType(*p.Type)
+				if err != nil {
+					return nil, err
+				}
+				if p.Name != "" {
+					nameParams = append(nameParams, p.Name)
+				}
+				nameParams = append(nameParams, pgend.name)
+        sName = asName(nameParams...)
+        if tg.nameCount[sName] == 0 {
+          break
+        }
+			}
+		}
+	}
+
+	// This name scheme is not unique, so we may have to add an integer postfix
+	sName = asName(nameParams...)
+	if tg.nameCount[sName] == 0 {
+		tg.nameCount[sName] = 1
+	} else {
+		tg.nameCount[sName] += 1
+		sName = asName(sName, fmt.Sprint(tg.nameCount[sName] - 1))
+	}
+	g := gend{
+		id:   mt.Id,
+		name: sName,
+	}
+	tg.generated[mt.Id] = g
+
+	return &g, nil
 }
 
 func (tg *TypeGenerator) GenAll() (string, error) {

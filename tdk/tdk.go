@@ -58,6 +58,12 @@ func (mt *MTypeInfo) GetComposite() (*TDComposite, error) {
 	return &res, err
 }
 
+func (mt *MTypeInfo) GetCompact() (*TDCompact, error) {
+	var res TDCompact 
+	err := json.Unmarshal(mt.Def[TDKCompact], &res)
+	return &res, err
+}
+
 func (mt *MTypeInfo) GetPrimitive() (*TDPrimitive, error) {
 	var res TDPrimitive
 	err := json.Unmarshal(mt.Def[TDKPrimitive], &res)

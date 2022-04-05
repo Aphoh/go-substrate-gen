@@ -18,6 +18,13 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*gend, error
 	}
 
 	tn := asName("Tuple", mt.Id)
+
+	g := gend{
+		name: tn,
+		id:   mt.Id,
+	}
+
+	tg.generated[mt.Id] = g
 	code := []jen.Code{}
 	for i, te := range *tup {
 		ty, err := tg.GetType(te)
@@ -29,10 +36,5 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*gend, error
 	tg.f.Comment(fmt.Sprintf("Tuple type %v", mt.Id))
 	tg.f.Type().Id(tn).Struct(code...)
 
-	g := gend{
-		name: tn,
-		id:   mt.Id,
-	}
-	tg.generated[mt.Id] = g
 	return &g, nil
 }
