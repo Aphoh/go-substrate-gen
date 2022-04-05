@@ -9,25 +9,6 @@ import (
 )
 
 func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend, error) {
-	// name struct id_pathname. Ex: 2_
-
-	// Account for pointer types that just wrap
-	//if len(mt.Ty.Path) == 1 {
-	//	switch mt.Ty.Path[0] {
-	//	case "Cow":
-	//		fgen, err := tg.GetType(v.Fields[0].TypeId)
-	//		if err != nil {
-	//			return nil, err
-	//		}
-	//		g := gend{
-	//			name: fgen.name,
-	//			id:   mt.Id,
-	//		}
-	//		tg.generated[mt.Id] = g
-	//		return &g, nil
-	//	}
-	//}
-
 	// Handle structs that just wrap, no need to over-wrap
 	if len(v.Fields) == 1 {
 		f0 := v.Fields[0]
@@ -51,7 +32,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend,
 	code := []jen.Code{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
-		fc, err := tg.fieldCode(field, "", fmt.Sprint(i))
+		fc, _, err := tg.fieldCode(field, "", fmt.Sprint(i))
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +46,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend,
 	return g, nil
 }
 
-func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen.Code, error) {
+func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen.Code, string, error) {
 	fieldName := f.Name
 	if fieldName == "" {
 		fieldName = "Field"
@@ -81,7 +62,7 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 
 	fieldTy, err := tg.GetType(f.TypeId)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Add the field
@@ -92,5 +73,5 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 		code = append(code, jen.Id(fieldName).Id(fieldTy.name))
 	}
 
-	return code, nil
+	return code, fieldName, nil
 }
