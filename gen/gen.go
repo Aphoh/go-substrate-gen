@@ -95,8 +95,8 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 	}
 }
 
-func (tg *TypeGenerator) getStructName(mt *tdk.MType) (*gend, error) {
-	nameParams := append([]string{}, mt.Ty.Path...)
+func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*gend, error) {
+	nameParams := append(mt.Ty.Path, base...)
 	sName := asName(nameParams...)
   // Add params, stopping if its unique
 	if tg.nameCount[sName] != 0 {

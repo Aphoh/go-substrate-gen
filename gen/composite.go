@@ -11,22 +11,36 @@ import (
 func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend, error) {
 	// name struct id_pathname. Ex: 2_
 
-	if len(mt.Ty.Path) == 1 {
-    // Account for pointer types that just wrap
-		switch mt.Ty.Path[0] {
-		case "Cow":
-			fgen, err := tg.GetType(v.Fields[0].TypeId)
-			if err != nil {
-				return nil, err
-			}
-			g := gend{
-				name: fgen.name,
-				id:   mt.Id,
-			}
-			tg.generated[mt.Id] = g
-			return &g, nil
+	// Account for pointer types that just wrap
+	//if len(mt.Ty.Path) == 1 {
+	//	switch mt.Ty.Path[0] {
+	//	case "Cow":
+	//		fgen, err := tg.GetType(v.Fields[0].TypeId)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//		g := gend{
+	//			name: fgen.name,
+	//			id:   mt.Id,
+	//		}
+	//		tg.generated[mt.Id] = g
+	//		return &g, nil
+	//	}
+	//}
 
+	// Handle structs that just wrap, no need to over-wrap
+	if len(v.Fields) == 1 {
+		f0 := v.Fields[0]
+		f0gend, err := tg.GetType(f0.TypeId)
+		if err != nil {
+			return nil, err
 		}
+		g := gend{
+			name: f0gend.name,
+			id:   mt.Id,
+		}
+		tg.generated[mt.Id] = g
+		return &g, nil
 	}
 
 	g, err := tg.getStructName(mt)

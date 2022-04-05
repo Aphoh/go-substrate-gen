@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/tdk"
-	"github.com/dave/jennifer/jen"
 )
 
 func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (*gend, error) {
@@ -12,19 +11,24 @@ func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (*gend, err
 	if err != nil {
 		return nil, err
 	}
-	sName := asName("Compact", innerT.name)
 
+	var name string
+	switch innerT.name {
+	case "struct{}":
+		name = innerT.name
+	case "uint32":
+		fallthrough
+	case "uint64":
+		fallthrough
+	case "ctypes.U128":
+		name = "ctypes.UCompact"
+	default:
+		panic(fmt.Sprintf("Unknown compact type %v", innerT.name))
+	}
 	g := gend{
-		name: sName,
+		name: name,
 		id:   mt.Id,
 	}
-  tg.generated[mt.Id] = g
-
-	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", sName, mt.Id))
-	tg.f.Type().Id(sName).Struct(
-		jen.Comment(fmt.Sprintf("Field %v of id=%v", innerT.name, innerT.id)),
-		jen.Id("inner").Id(innerT.name),
-	)
-
-  return &g, nil
+	tg.generated[mt.Id] = g
+	return &g, nil
 }
