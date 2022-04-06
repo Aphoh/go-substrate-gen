@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata"
-	"github.com/aphoh/go-substrate-gen/tdk"
+	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/dave/jennifer/jen"
 )
 

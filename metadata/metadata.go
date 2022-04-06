@@ -3,7 +3,7 @@ package metadata
 import (
 	"encoding/json"
 
-	"github.com/aphoh/go-substrate-gen/tdk"
+	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 )
 
 type MetaRoot struct {

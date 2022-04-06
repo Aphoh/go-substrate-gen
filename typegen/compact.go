@@ -3,7 +3,7 @@ package typegen
 import (
 	"fmt"
 
-	"github.com/aphoh/go-substrate-gen/tdk"
+	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 )
 
 func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (*gend, error) {
