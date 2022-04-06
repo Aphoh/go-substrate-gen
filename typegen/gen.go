@@ -1,4 +1,4 @@
-package gen
+package typegen
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-const CTypes = "github.com/centrifuge/go-substrate-rpc-client/types"
+const CTypes = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 
 type gend struct {
 	id   string
