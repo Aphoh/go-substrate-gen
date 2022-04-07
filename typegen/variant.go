@@ -4,16 +4,17 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
 
 const SCALE = "github.com/centrifuge/go-substrate-rpc-client/v4/scale"
 
-func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, error) {
+func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, error) {
 	if len(v.Variants) == 0 {
-		g := gend{
-			name: "struct{}",
-			id:   mt.Id,
+		g := Gend{
+			Name: "struct{}",
+			Id:   mt.Id,
 		}
 		tg.generated[mt.Id] = g
 		return &g, nil
@@ -30,7 +31,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 	variantFieldNames := [][]string{}
 
 	for i, variant := range v.Variants {
-		vIsName := asName("Is", variant.Name)
+		vIsName := utils.AsName("Is", variant.Name)
 		variantIsNames = append(variantIsNames, vIsName)
 		inner = append(inner, jen.Id(vIsName).Bool())
 		variantFieldNames = append(variantFieldNames, []string{})
@@ -46,12 +47,12 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 
 	}
 
-	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", asName(mt.Ty.Path...), mt.Id))
-	tg.f.Type().Id(g.name).Struct(inner...)
+	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(mt.Ty.Path...), mt.Id))
+	tg.f.Type().Id(g.Name).Struct(inner...)
 
 	// func (ty *g.name) Encode(encoder scale.Encoder) (err error) {...}
 	tg.f.Func().Params(
-		jen.Id("ty").Op("*").Id(g.name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
+		jen.Id("ty").Op("*").Id(g.Name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// for each variant, check if variant
@@ -59,10 +60,10 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(i))
-				errorCheckG(g2)
+				utils.ErrorCheckG(g2)
 				for j := range variant.Fields {
 					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(variantFieldNames[i][j]))
-					errorCheckG(g2)
+					utils.ErrorCheckG(g2)
 				}
 				// return ok
 				g2.Return(jen.Nil())
@@ -74,12 +75,12 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 
 	// func (ty *g.name) Decode(decoder scale.Decoder) (err error) {...}
 	tg.f.Func().Params(
-		jen.Id("ty").Op("*").Id(g.name)).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
+		jen.Id("ty").Op("*").Id(g.Name)).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// variant, err := decoder.ReadOneByte()
 		g1.Id("variant, err").Op(":=").Id("decoder").Dot("ReadOneByte").Call()
-		errorCheckG(g1)
+		utils.ErrorCheckG(g1)
 		// switch variant {..}
 		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
@@ -92,7 +93,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 						g3.Err().Op("=").Id("decoder").Dot("Decode").Call(
 							jen.Op("&").Id("ty").Dot(variantFieldNames[i][j]),
 						)
-						errorCheckG(g3)
+						utils.ErrorCheckG(g3)
 					}
 					g3.Return()
 				})
@@ -104,8 +105,3 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*gend, err
 	return g, nil
 }
 
-func errorCheckG(s *jen.Group) {
-	s.If(jen.Err().Op("!=").Nil()).Block(
-		jen.Return(jen.Err()),
-	)
-}

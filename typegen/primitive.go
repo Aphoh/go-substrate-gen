@@ -6,23 +6,23 @@ import (
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 )
 
-func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, id string) (*gend, error) {
-	g := gend{id: id}
+func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, id string) (*Gend, error) {
+	g := Gend{Id: id}
 	switch *primitive {
 	case "U8":
-		g.name = "byte"
+		g.Name = "byte"
 	case "U16":
-		g.name = "uint16"
+		g.Name = "uint16"
 	case "U32":
-		g.name = "uint32"
+		g.Name = "uint32"
 	case "U64":
-		g.name = "uint64"
+		g.Name = "uint64"
 	case "U128":
-		g.name = "ctypes.U128"
+		g.Name = "ctypes.U128"
 	case "Str":
-		g.name = "string"
+		g.Name = "string"
 	case "Bool":
-		g.name = "bool"
+		g.Name = "bool"
 	default:
 		return nil, fmt.Errorf("Unsupported primitive %s", string(*primitive))
 	}

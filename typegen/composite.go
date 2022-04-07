@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
 
-func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend, error) {
+func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*Gend, error) {
 	// Handle structs that just wrap, no need to over-wrap
 	if len(v.Fields) == 1 {
 		f0 := v.Fields[0]
@@ -16,9 +17,9 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend,
 		if err != nil {
 			return nil, err
 		}
-		g := gend{
-			name: f0gend.name,
-			id:   mt.Id,
+		g := Gend{
+			Name: f0gend.Name,
+			Id:   mt.Id,
 		}
 		tg.generated[mt.Id] = g
 		return &g, nil
@@ -41,7 +42,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*gend,
 
 	// Write new struct with all ids
 	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(mt.Ty.Path, "_"), mt.Id))
-	tg.f.Type().Id(g.name).Struct(code...)
+	tg.f.Type().Id(g.Name).Struct(code...)
 
 	return g, nil
 }
@@ -51,7 +52,7 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 	if fieldName == "" {
 		fieldName = "Field"
 	}
-	fieldName = asName(prefix, fieldName, postfix)
+	fieldName = utils.AsName(prefix, fieldName, postfix)
 
 	code := []jen.Code{}
 
@@ -68,9 +69,9 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 	// Add the field
 	// If it's a rust pointer, use a pointer to avoid recursive structs
 	if strings.HasPrefix(f.TypeName, "Box") {
-		code = append(code, jen.Id(fieldName).Op("*").Id(fieldTy.name))
+		code = append(code, jen.Id(fieldName).Op("*").Id(fieldTy.Name))
 	} else {
-		code = append(code, jen.Id(fieldName).Id(fieldTy.name))
+		code = append(code, jen.Id(fieldName).Id(fieldTy.Name))
 	}
 
 	return code, fieldName, nil

@@ -4,24 +4,25 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
 
-func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*gend, error) {
+func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*Gend, error) {
 	if len(*tup) == 0 {
-		g := gend{
-			name: "struct{}",
-			id:   mt.Id,
+		g := Gend{
+			Name: "struct{}",
+			Id:   mt.Id,
 		}
 		tg.generated[mt.Id] = g
 		return &g, nil
 	}
 
-	tn := asName("Tuple", mt.Id)
+	tn := utils.AsName("Tuple", mt.Id)
 
-	g := gend{
-		name: tn,
-		id:   mt.Id,
+	g := Gend{
+		Name: tn,
+		Id:   mt.Id,
 	}
 
 	tg.generated[mt.Id] = g
@@ -31,7 +32,7 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*gend, error
 		if err != nil {
 			return nil, err
 		}
-		code = append(code, jen.Id(asName("Elem", fmt.Sprint(i))).Id(ty.name))
+		code = append(code, jen.Id(utils.AsName("Elem", fmt.Sprint(i))).Id(ty.Name))
 	}
 	tg.f.Comment(fmt.Sprintf("Tuple type %v", mt.Id))
 	tg.f.Type().Id(tn).Struct(code...)

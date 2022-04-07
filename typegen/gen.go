@@ -5,21 +5,22 @@ import (
 
 	"github.com/aphoh/go-substrate-gen/metadata"
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
 
 const CTypes = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 
-type gend struct {
-	id   string
-	name string
+type Gend struct {
+	Id   string
+	Name string
 }
 
 type TypeGenerator struct {
 	f         *jen.File
 	pkgPath   string
 	mtypes    map[string]tdk.MType
-	generated map[string]gend
+	generated map[string]Gend
 	nameCount map[string]uint32
 }
 
@@ -32,10 +33,10 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 	f.ImportAlias("github.com/centrifuge/go-substrate-rpc-client/types", "ctypes")
 	f.Comment("Add dummy variable so jennifer keeps the imports")
 	f.Var().Id("_").Op("=").Qual(CTypes, "NewU8").Call(jen.Lit(0))
-	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]gend{}, nameCount: map[string]uint32{}}
+	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]Gend{}, nameCount: map[string]uint32{}}
 }
 
-func (tg *TypeGenerator) GetType(id string) (*gend, error) {
+func (tg *TypeGenerator) GetType(id string) (*Gend, error) {
 	if v, ok := tg.generated[id]; ok {
 		return &v, nil
 	}
@@ -95,9 +96,9 @@ func (tg *TypeGenerator) GetType(id string) (*gend, error) {
 	}
 }
 
-func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*gend, error) {
+func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*Gend, error) {
 	nameParams := append(mt.Ty.Path, base...)
-	sName := asName(nameParams...)
+	sName := utils.AsName(nameParams...)
   // Add params, stopping if its unique
 	if tg.nameCount[sName] != 0 {
 		for _, p := range mt.Ty.Params {
@@ -109,8 +110,8 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*gend, er
 				if p.Name != "" {
 					nameParams = append(nameParams, p.Name)
 				}
-				nameParams = append(nameParams, pgend.name)
-        sName = asName(nameParams...)
+				nameParams = append(nameParams, pgend.Name)
+        sName = utils.AsName(nameParams...)
         if tg.nameCount[sName] == 0 {
           break
         }
@@ -119,16 +120,16 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*gend, er
 	}
 
 	// This name scheme is not unique, so we may have to add an integer postfix
-	sName = asName(nameParams...)
+	sName = utils.AsName(nameParams...)
 	if tg.nameCount[sName] == 0 {
 		tg.nameCount[sName] = 1
 	} else {
 		tg.nameCount[sName] += 1
-		sName = asName(sName, fmt.Sprint(tg.nameCount[sName] - 1))
+		sName = utils.AsName(sName, fmt.Sprint(tg.nameCount[sName] - 1))
 	}
-	g := gend{
-		id:   mt.Id,
-		name: sName,
+	g := Gend{
+		Id:   mt.Id,
+		Name: sName,
 	}
 	tg.generated[mt.Id] = g
 

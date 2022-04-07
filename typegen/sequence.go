@@ -6,14 +6,14 @@ import (
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 )
 
-func (tg *TypeGenerator) GenSequence(seq *tdk.TDSequence, mt *tdk.MType) (*gend, error) {
+func (tg *TypeGenerator) GenSequence(seq *tdk.TDSequence, mt *tdk.MType) (*Gend, error) {
 	seqG, err := tg.GetType(seq.TypeId)
 	if err != nil {
 		return nil, err
 	}
-	g := gend{
-		id:   mt.Id,
-		name: fmt.Sprintf("[]%s", seqG.name),
+	g := Gend{
+		Id:   mt.Id,
+		Name: fmt.Sprintf("[]%s", seqG.Name),
 	}
 	tg.generated[mt.Id] = g
 	return &g, nil
