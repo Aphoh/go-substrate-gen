@@ -6,7 +6,6 @@ import (
 	"github.com/aphoh/go-substrate-gen/metadata/pal"
 	"github.com/aphoh/go-substrate-gen/typegen"
 	"github.com/aphoh/go-substrate-gen/utils"
-	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 )
 
@@ -14,14 +13,13 @@ type StorageGenerator struct {
 	F         *jen.File
 	storage   *pal.Storage
 	tygen     *typegen.TypeGenerator
-	pkgPath   string
 	typesPath string
 }
 
-func NewStorageGenerator(pkgPath string, storage *pal.Storage, tygen *typegen.TypeGenerator, typesPath string) StorageGenerator {
-	F := jen.NewFilePath(pkgPath)
+func NewStorageGenerator(pkgName string, storage *pal.Storage, tygen *typegen.TypeGenerator, typesPath string) StorageGenerator {
+	F := jen.NewFile(pkgName)
 	F.ImportAlias(utils.GSRPC, "gsrpc")
-	return StorageGenerator{F: F, storage: storage, tygen: tygen, pkgPath: pkgPath, typesPath: typesPath}
+	return StorageGenerator{F: F, storage: storage, tygen: tygen, typesPath: typesPath}
 }
 
 func (sg *StorageGenerator) Generate() (err error) {
@@ -61,11 +59,21 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 		return err
 	}
 
+	// TODO: should this be just a pattern thingy
+
 	sg.F.Comment(fmt.Sprintf("Make a storage key for %v %v", item.Name, v))
-	sg.F.Func().Id(utils.AsName("Make", prefix, item.Name, "StorageKey")).Call(
+
+	var argStatement *jen.Statement
+	if gend.Global {
+		argStatement = jen.Id("args").Op("*").Id(gend.Name)
+	} else {
+		argStatement = jen.Id("args").Op("*").Qual(sg.typesPath, gend.Name)
+	}
+
+	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(
 		// Function arguments
 		jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata"), // pointer to metadata
-		jen.Id("args").Op("*").Qual(sg.typesPath, gend.Name),  // pointer to key
+		argStatement,
 	).BlockFunc(func(g *jen.Group) {
 		// var byteArgs [][]byte
 		g.Var().Id("byteArgs").Index().Index().Byte()
@@ -73,7 +81,7 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 		g.Var().Err().Error()
 		// Encode the given type.
 		g.If( // check if it's a tuple
-			jen.List(jen.Id("v"), jen.Id("ok")).Op(":=").Id("args").Op(".").Parens(jen.Qual(sg.typesPath, utils.TupleEncodeEach)),
+			jen.List(jen.Id("v"), jen.Id("ok")).Op(":=").Id("args").Op(".").Parens(jen.Qual(sg.typesPath, utils.TupleIface)).Op(";").Id("ok"),
 		).BlockFunc(func(g1 *jen.Group) {
 			// Set the byte args
 			g1.List(jen.Err(), jen.Id("byteArgs")).Op("=").Id("v").Dot(utils.TupleEncodeEach).Call()

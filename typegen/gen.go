@@ -9,15 +9,14 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-const CTypes = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
-
 type Gend struct {
 	Id   string
 	Name string
+  Global bool
 }
 
 type TypeGenerator struct {
-	f         *jen.File
+	F         *jen.File
 	pkgPath   string
 	mtypes    map[string]tdk.MType
 	generated map[string]Gend
@@ -30,10 +29,11 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
-	f.ImportAlias("github.com/centrifuge/go-substrate-rpc-client/types", "ctypes")
+	f.ImportAlias("github.com/centrifuge/go-substrate-rpc-client/types", "types")
 	f.Comment("Add dummy variable so jennifer keeps the imports")
-	f.Var().Id("_").Op("=").Qual(CTypes, "NewU8").Call(jen.Lit(0))
-	return TypeGenerator{f: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]Gend{}, nameCount: map[string]uint32{}}
+	f.Var().Id("_").Op("=").Qual(utils.CTYPES, "NewU8").Call(jen.Lit(0))
+	f.Type().Id(utils.TupleIface).Interface(jen.Id(utils.TupleEncodeEach).Call().Index().Index().Byte())
+	return TypeGenerator{F: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]Gend{}, nameCount: map[string]uint32{}}
 }
 
 func (tg *TypeGenerator) GetType(id string) (*Gend, error) {
@@ -99,7 +99,7 @@ func (tg *TypeGenerator) GetType(id string) (*Gend, error) {
 func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*Gend, error) {
 	nameParams := append(mt.Ty.Path, base...)
 	sName := utils.AsName(nameParams...)
-  // Add params, stopping if its unique
+	// Add params, stopping if its unique
 	if tg.nameCount[sName] != 0 {
 		for _, p := range mt.Ty.Params {
 			if p.Type != nil {
@@ -111,10 +111,10 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*Gend, er
 					nameParams = append(nameParams, p.Name)
 				}
 				nameParams = append(nameParams, pgend.Name)
-        sName = utils.AsName(nameParams...)
-        if tg.nameCount[sName] == 0 {
-          break
-        }
+				sName = utils.AsName(nameParams...)
+				if tg.nameCount[sName] == 0 {
+					break
+				}
 			}
 		}
 	}
@@ -125,7 +125,7 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (*Gend, er
 		tg.nameCount[sName] = 1
 	} else {
 		tg.nameCount[sName] += 1
-		sName = utils.AsName(sName, fmt.Sprint(tg.nameCount[sName] - 1))
+		sName = utils.AsName(sName, fmt.Sprint(tg.nameCount[sName]-1))
 	}
 	g := Gend{
 		Id:   mt.Id,
@@ -142,5 +142,5 @@ func (tg *TypeGenerator) GenAll() (string, error) {
 			println("Got error getting type", "type", id, "err", err.Error())
 		}
 	}
-	return fmt.Sprintf("%#v", tg.f), nil
+	return fmt.Sprintf("%#v", tg.F), nil
 }

@@ -41,8 +41,8 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*Gend,
 	}
 
 	// Write new struct with all ids
-	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(mt.Ty.Path, "_"), mt.Id))
-	tg.f.Type().Id(g.Name).Struct(code...)
+	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(mt.Ty.Path, "_"), mt.Id))
+	tg.F.Type().Id(g.Name).Struct(code...)
 
 	return g, nil
 }

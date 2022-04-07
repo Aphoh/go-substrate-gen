@@ -47,11 +47,11 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, err
 
 	}
 
-	tg.f.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(mt.Ty.Path...), mt.Id))
-	tg.f.Type().Id(g.Name).Struct(inner...)
+	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(mt.Ty.Path...), mt.Id))
+	tg.F.Type().Id(g.Name).Struct(inner...)
 
 	// func (ty *g.name) Encode(encoder scale.Encoder) (err error) {...}
-	tg.f.Func().Params(
+	tg.F.Func().Params(
 		jen.Id("ty").Op("*").Id(g.Name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
@@ -74,7 +74,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, err
 	})
 
 	// func (ty *g.name) Decode(decoder scale.Decoder) (err error) {...}
-	tg.f.Func().Params(
+	tg.F.Func().Params(
 		jen.Id("ty").Op("*").Id(g.Name)).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {

@@ -20,8 +20,8 @@ func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (*Gend, err
 		fallthrough
 	case "uint64":
 		fallthrough
-	case "ctypes.U128":
-		name = "ctypes.UCompact"
+	case "types.U128":
+		name = "types.UCompact"
 	default:
 		panic(fmt.Sprintf("Unknown compact type %v", innerT.Name))
 	}
