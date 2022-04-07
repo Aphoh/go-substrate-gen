@@ -10,20 +10,24 @@ import (
 
 const SCALE = "github.com/centrifuge/go-substrate-rpc-client/v4/scale"
 
-func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, error) {
+func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedType, error) {
 	if len(v.Variants) == 0 {
-		g := Gend{
-			Name: "struct{}",
-			Id:   mt.Id,
+		g := &PrimitiveGend{
+			PrimName: "struct{}",
 		}
 		tg.generated[mt.Id] = g
-		return &g, nil
+		return g, nil
 	}
 
-	g, err := tg.getStructName(mt)
+	sName, err := tg.getStructName(mt)
 	if err != nil {
 		return nil, err
 	}
+	g := &Gend{
+		Name: sName,
+		Pkg:  tg.pkgPath,
+	}
+	tg.generated[mt.Id] = g
 
 	inner := []jen.Code{}
 
@@ -37,7 +41,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, err
 		variantFieldNames = append(variantFieldNames, []string{})
 
 		for j, f := range variant.Fields {
-			fc, fieldName, err := tg.fieldCode(f, "As_"+variant.Name, fmt.Sprint(j))
+			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", variant.Name), fmt.Sprint(j))
 			if err != nil {
 				return nil, err
 			}
@@ -104,4 +108,3 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (*Gend, err
 
 	return g, nil
 }
-

@@ -1,7 +1,6 @@
 package typegen
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -27,7 +26,13 @@ const testJson = `
             "Composite": {
               "fields": [
                 {
-                  "name": null,
+                  "name": "a",
+                  "type": "1",
+                  "typeName": "[u8; 32]",
+                  "docs": []
+                },
+                {
+                  "name": "b",
                   "type": "1",
                   "typeName": "[u8; 32]",
                   "docs": []
@@ -70,13 +75,16 @@ const testJson = `
 
 func TestGenSmallMetadata(t *testing.T) {
 	mr, err := metadata.ParseMetadata([]byte(testJson))
+	t.Log(mr)
 	require.NoError(t, err)
-	tg := NewTypeGenerator(&mr, "example")
+	tg := NewTypeGenerator(&mr, "github.com/aphoh/go-substrate-gen/typegen")
 
-	g, err := tg.GetType("0")
+	res, err := tg.GenAll()
 	assert.NoError(t, err)
-	fmt.Printf("%#v", tg.F)
-	t.Log(g)
+
+	//ioutil.WriteFile("test_out.go", []byte(res), 0644)
+	_ = res
+
 	t.Fail()
 }
 
@@ -85,7 +93,7 @@ func TestGenBigMetadata(t *testing.T) {
 	require.NoError(t, err)
 	mr, err := metadata.ParseMetadata(inp)
 
-	tg := NewTypeGenerator(&mr, "typegen")
+	tg := NewTypeGenerator(&mr, "github.com/aphoh/go-substrate-gen/typegen")
 	res, err := tg.GenAll()
 
 	ioutil.WriteFile("test_out.go", []byte(res), 0644)

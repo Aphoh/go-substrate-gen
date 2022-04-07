@@ -8,24 +8,23 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*Gend, error) {
+func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (GeneratedType, error) {
+	var g GeneratedType
+	// Empty tuple maps to struct{}
 	if len(*tup) == 0 {
-		g := Gend{
-			Name: "struct{}",
-			Id:   mt.Id,
-		}
+		g = &PrimitiveGend{PrimName: "struct{}"}
 		tg.generated[mt.Id] = g
-		return &g, nil
+		return g, nil
 	}
 
 	tn := utils.AsName("Tuple", mt.Id)
-
-	g := Gend{
+	g = &Gend{
 		Name: tn,
-		Id:   mt.Id,
+		Pkg:  tg.pkgPath,
 	}
 
 	tg.generated[mt.Id] = g
+
 	code := []jen.Code{}
 	fieldNames := []string{}
 	for i, te := range *tup {
@@ -35,7 +34,7 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*Gend, error
 		}
 		fName := utils.AsName("Elem", fmt.Sprint(i))
 		fieldNames = append(fieldNames, fName)
-		code = append(code, jen.Id(fName).Id(ty.Name))
+		code = append(code, jen.Id(fName).Custom(utils.TypeOpts, ty.Code()))
 	}
 	tg.F.Comment(fmt.Sprintf("Tuple type %v", mt.Id))
 	tg.F.Type().Id(tn).Struct(code...)
@@ -47,8 +46,8 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*Gend, error
 		jen.List(jen.Index().Index().Byte(), jen.Error()),
 	).BlockFunc(func(g *jen.Group) {
 		g.Id("ba").Op(":=").Index().Index().Byte().Values()
-    g.Var().Id("bytes").Index().Byte()
-    g.Var().Err().Error()
+		g.Var().Id("bytes").Index().Byte()
+		g.Var().Err().Error()
 		for _, f := range fieldNames {
 			// bytes, err := ctypes.EncodeToBytes(tup.field)
 			g.List(jen.Id("bytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(
@@ -61,5 +60,5 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (*Gend, error
 		g.Return(jen.List(jen.Id("ba"), jen.Nil()))
 	})
 
-	return &g, nil
+	return g, nil
 }

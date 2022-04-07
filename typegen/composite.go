@@ -9,26 +9,27 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*Gend, error) {
+func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (GeneratedType, error) {
 	// Handle structs that just wrap, no need to over-wrap
 	if len(v.Fields) == 1 {
 		f0 := v.Fields[0]
-		f0gend, err := tg.GetType(f0.TypeId)
+		g, err := tg.GetType(f0.TypeId)
 		if err != nil {
 			return nil, err
 		}
-		g := Gend{
-			Name: f0gend.Name,
-			Id:   mt.Id,
-		}
 		tg.generated[mt.Id] = g
-		return &g, nil
+		return g, nil
 	}
 
-	g, err := tg.getStructName(mt)
+	sName, err := tg.getStructName(mt)
 	if err != nil {
 		return nil, err
 	}
+	g := &Gend{
+		Name: sName,
+		Pkg:  tg.pkgPath,
+	}
+	tg.generated[mt.Id] = g
 
 	code := []jen.Code{}
 	for i, field := range v.Fields {
@@ -42,7 +43,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (*Gend,
 
 	// Write new struct with all ids
 	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", strings.Join(mt.Ty.Path, "_"), mt.Id))
-	tg.F.Type().Id(g.Name).Struct(code...)
+	tg.F.Type().Id(sName).Struct(code...)
 
 	return g, nil
 }
@@ -69,9 +70,9 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen
 	// Add the field
 	// If it's a rust pointer, use a pointer to avoid recursive structs
 	if strings.HasPrefix(f.TypeName, "Box") {
-		code = append(code, jen.Id(fieldName).Op("*").Id(fieldTy.Name))
+		code = append(code, jen.Id(fieldName).Op("*").Custom(utils.TypeOpts, fieldTy.Code()))
 	} else {
-		code = append(code, jen.Id(fieldName).Id(fieldTy.Name))
+		code = append(code, jen.Id(fieldName).Custom(utils.TypeOpts, fieldTy.Code()))
 	}
 
 	return code, fieldName, nil

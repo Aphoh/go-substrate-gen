@@ -12,6 +12,8 @@ const GSRPC = "github.com/centrifuge/go-substrate-rpc-client/v4"
 const TupleIface = "TupleIface"
 const TupleEncodeEach = "TupleEncodeEach"
 
+var TypeOpts = jen.Options{}
+
 func AsName(strs ...string) string {
 	n := stringy.New(strings.Join(strs, "_")).CamelCase(
 		"{", "",

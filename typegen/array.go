@@ -1,21 +1,18 @@
 package typegen
 
 import (
-	"fmt"
-
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 )
 
-func (tg *TypeGenerator) GenArray(arr *tdk.TDArray, id string) (*Gend, error) {
+func (tg *TypeGenerator) GenArray(arr *tdk.TDArray, id string) (GeneratedType, error) {
 	tyGend, err := tg.GetType(arr.TypeId)
 	if err != nil {
 		return nil, err
 	}
-	name := fmt.Sprintf("[%v]%v", arr.Len, tyGend.Name)
-  g := Gend{
-		Id:   id,
-		Name: name,
+	g := ArrayGend{
+		Inner: tyGend,
+		Len:   arr.Len,
 	}
-  tg.generated[id] = g
-  return &g, nil
+	tg.generated[id] = &g
+	return &g, nil
 }
