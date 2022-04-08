@@ -9,6 +9,7 @@ import (
 
 const CTYPES = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 const GSRPC = "github.com/centrifuge/go-substrate-rpc-client/v4"
+const GSRPCState = "github.com/centrifuge/go-substrate-rpc-client/v4/rpc/state"
 const TupleIface = "TupleIface"
 const TupleEncodeEach = "TupleEncodeEach"
 
@@ -33,5 +34,11 @@ func ErrorCheckG(s *jen.Group) {
 func ErrorCheckWithNil(s *jen.Group) {
 	s.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.List(jen.Nil(), jen.Err())),
+	)
+}
+
+func ErrorCheckWithNamedArgs(s *jen.Group) {
+	s.If(jen.Err().Op("!=").Nil()).Block(
+		jen.Return(),
 	)
 }

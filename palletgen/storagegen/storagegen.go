@@ -1,6 +1,7 @@
 package storagegen
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata/pal"
@@ -53,6 +54,7 @@ func (sg *StorageGenerator) Generate() (err error) {
 	return nil
 }
 
+// This is when the stored type is just one thing
 func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix string) error {
 	// get inner type
 	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
@@ -62,11 +64,61 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 		sg.F.Comment(doc)
 	}
 
-	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
+	methodName := utils.AsName("Make", item.Name, "StorageKey")
+	sg.F.Func().Id(methodName).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
 		g.ReturnFunc(func(g1 *jen.Group) {
 			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name))
 		})
 	})
+	retGend, err := sg.tygen.GetType(string(v))
+	if err != nil {
+		return err
+	}
+	sg.generateRpcAccessor(methodName, args, []string{"meta"}, retGend, item)
+	return nil
+}
+
+func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) error {
+	// get inner type
+	gend, err := sg.tygen.GetType(p.KeyTypeId)
+	if err != nil {
+		return err
+	}
+
+	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
+	var ind uint32 = 0
+	newArgs, keyArgNames, err := sg.generateArgs(gend, &ind)
+	args = append(args, newArgs...)
+
+	sg.F.Comment(fmt.Sprintf("Make a storage key for %v", item.Name))
+	for _, doc := range item.Docs {
+		sg.F.Comment(doc)
+	}
+
+	methodName := utils.AsName("Make", item.Name, "StorageKey")
+	sg.F.Func().Id(methodName).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
+		// byteArgs := [][]byte{}
+		g.Id("byteArgs").Op(":=").Index().Index().Byte().Values()
+		// encBytes := []byte{}
+		g.Id("encBytes").Op(":=").Index().Byte().Values()
+		// var err error
+		g.Var().Err().Error()
+		for _, argName := range keyArgNames {
+			g.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id(argName))
+			utils.ErrorCheckWithNil(g)
+			g.Id("byteArgs").Op("=").Append(jen.Id("byteArgs"), jen.Id("encBytes"))
+		}
+		g.ReturnFunc(func(g1 *jen.Group) {
+			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name), jen.Id("byteArgs").Op("..."))
+		})
+	})
+
+	retGend, err := sg.tygen.GetType(p.ValueTypeId)
+	if err != nil {
+		return err
+	}
+	sKeyArgNames := append([]string{"meta"}, keyArgNames...)
+	sg.generateRpcAccessor(methodName, args, sKeyArgNames, retGend, item)
 	return nil
 }
 
@@ -84,7 +136,7 @@ func (sg *StorageGenerator) generateArgs(gend typegen.GeneratedType, index *uint
 	if tn != tdk.TDKTuple {
 		// Not a tuple, just take the args
 		name := fmt.Sprintf("arg%v", *index)
-    
+
 		names = append(names, name)
 		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
 		*index += 1
@@ -110,38 +162,51 @@ func (sg *StorageGenerator) generateArgs(gend typegen.GeneratedType, index *uint
 	return args, names, nil
 }
 
-func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) error {
-	// get inner type
-	gend, err := sg.tygen.GetType(p.KeyTypeId)
-	if err != nil {
-		return err
+func (sg *StorageGenerator) generateRpcAccessor(sKeyMethod string, sKeyArgs []jen.Code, sKeyArgNames []string, returnType typegen.GeneratedType, item *pal.SItem) error {
+
+	args := []jen.Code{jen.Id("state").Op("*").Qual(utils.GSRPCState, "State")}
+	args = append(args, sKeyArgs...)
+	keyArgCode := []jen.Code{}
+	for _, name := range sKeyArgNames {
+		keyArgCode = append(keyArgCode, jen.Id(name))
 	}
-
-	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
-	var ind uint32 = 0
-	newArgs, keyArgNames, err := sg.generateArgs(gend, &ind)
-	args = append(args, newArgs...)
-
-	sg.F.Comment(fmt.Sprintf("Make a storage key for %v", item.Name))
-	for _, doc := range item.Docs {
-		sg.F.Comment(doc)
+	retArgs := []jen.Code{}
+	retArgs = append(retArgs, jen.Id("ret").Custom(utils.TypeOpts, returnType.Code()))
+	if item.Modifier == "Optional" {
+		retArgs = append(retArgs, jen.Id("isSome").Id("bool"))
 	}
+	ret := jen.List(append(retArgs, jen.Err().Error())...)
 
-	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
-		// byteArgs := [][]byte{}
-		g.Id("byteArgs").Op(":=").Index().Index().Byte().Values()
-		// encBytes := []byte{}
-		g.Id("encBytes").Op(":=").Index().Byte().Values()
-		// var err error
-		g.Var().Err().Error()
-		for _, argName := range keyArgNames {
-			g.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id(argName))
-			utils.ErrorCheckWithNil(g)
-			g.Id("byteArgs").Op("=").Append(jen.Id("byteArgs"), jen.Id("encBytes"))
+	// If default, parse the default result statically
+	var defaultBytesName string
+	if item.Modifier == "Default" {
+		defaultBytesName = utils.AsName(item.Name, "ResultDefaultBytes")
+		hexStr := item.Fallback[2:]
+		if _, err := hex.DecodeString(hexStr); err != nil {
+			return fmt.Errorf("Invalid hex string for item %v, %v", item.Name, item.Fallback)
 		}
-		g.ReturnFunc(func(g1 *jen.Group) {
-			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name), jen.Id("byteArgs").Op("..."))
-		})
+		sg.F.Var().List(jen.Id(defaultBytesName), jen.Id("_")).Op("=").Qual("encoding/hex", "DecodeString").Call(jen.Lit(hexStr))
+	}
+	sg.F.Func().Id(utils.AsName("Get", item.Name)).Call(args...).Call(ret).BlockFunc(func(g *jen.Group) {
+		// Get storage key
+		g.List(jen.Id("key"), jen.Err()).Op(":=").Id(sKeyMethod).Call(keyArgCode...)
+		utils.ErrorCheckWithNamedArgs(g)
+		if item.Modifier == "Optional" {
+			// If optional, just return the result of the GetStorage Call
+			g.List(jen.Id("isSome"), jen.Err()).Op("=").Id("state").Dot("GetStorageLatest").Call(jen.Id("key"), jen.Op("&").Id("ret"))
+			utils.ErrorCheckWithNamedArgs(g)
+		} else if item.Modifier == "Default" {
+			// If not optional, return the default when isSome is false
+			g.List(jen.Id("isSome"), jen.Err()).Op(":=").Id("state").Dot("GetStorageLatest").Call(jen.Id("key"), jen.Op("&").Id("ret"))
+			utils.ErrorCheckWithNamedArgs(g)
+			g.If(jen.Op("!").Id("isSome")).BlockFunc(func(g1 *jen.Group) {
+				g1.Err().Op("=").Qual(utils.CTYPES, "DecodeFromBytes").Call(jen.Id(defaultBytesName), jen.Op("&").Id("ret"))
+				utils.ErrorCheckWithNamedArgs(g1)
+			})
+		}
+		g.Return()
+
 	})
+
 	return nil
 }
