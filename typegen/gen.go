@@ -11,7 +11,7 @@ import (
 
 type TypeGenerator struct {
 	F         *jen.File
-	pkgPath   string
+	PkgPath   string
 	mtypes    map[string]tdk.MType
 	generated map[string]GeneratedType
 	nameCount map[string]uint32
@@ -23,12 +23,8 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
-	// TODO: remove this
-	//f.ImportAlias("github.com/centrifuge/go-substrate-rpc-client/types", "types")
-	//f.Comment("Add dummy variable so jennifer keeps the imports")
-	//f.Var().Id("_").Op("=").Qual(utils.CTYPES, "NewU8").Call(jen.Lit(0))
 	f.Type().Id(utils.TupleIface).Interface(jen.Id(utils.TupleEncodeEach).Call().Index().Index().Byte())
-	return TypeGenerator{F: f, pkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}}
+	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}}
 }
 
 func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
@@ -49,7 +45,7 @@ func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return tg.GenArray(v, id)
+		return tg.GenArray(v, &mt)
 	case tdk.TDKCompact:
 		v, err := mt.Ty.GetCompact()
 		if err != nil {
@@ -73,7 +69,7 @@ func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return tg.GenPrimitive(prim, id)
+		return tg.GenPrimitive(prim, &mt)
 	case tdk.TDKTuple:
 		tup, err := mt.Ty.GetTuple()
 		if err != nil {

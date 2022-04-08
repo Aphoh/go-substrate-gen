@@ -27,7 +27,8 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (Genera
 	}
 	g := &Gend{
 		Name: sName,
-		Pkg:  tg.pkgPath,
+		Pkg:  tg.PkgPath,
+		MTy:  mt,
 	}
 	tg.generated[mt.Id] = g
 

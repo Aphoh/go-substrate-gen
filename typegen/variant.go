@@ -14,6 +14,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 	if len(v.Variants) == 0 {
 		g := &PrimitiveGend{
 			PrimName: "struct{}",
+			MTy:      mt,
 		}
 		tg.generated[mt.Id] = g
 		return g, nil
@@ -25,7 +26,8 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 	}
 	g := &Gend{
 		Name: sName,
-		Pkg:  tg.pkgPath,
+		Pkg:  tg.PkgPath,
+		MTy:  mt,
 	}
 	tg.generated[mt.Id] = g
 

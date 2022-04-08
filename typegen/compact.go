@@ -7,7 +7,6 @@ import (
 	"github.com/aphoh/go-substrate-gen/utils"
 )
 
-
 func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (GeneratedType, error) {
 	innerT, err := tg.GetType(v.TypeId)
 	if err != nil {
@@ -22,6 +21,7 @@ func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (GeneratedT
 		g = &Gend{
 			Name: "UCompact",
 			Pkg:  utils.CTYPES,
+			MTy:  mt,
 		}
 	} else if sg, ok := innerT.(*PrimitiveGend); ok {
 		switch sg.PrimName {
@@ -36,6 +36,7 @@ func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (GeneratedT
 			g = &Gend{
 				Name: "UCompact",
 				Pkg:  utils.CTYPES,
+				MTy:  mt,
 			}
 		default:
 			return nil, fmt.Errorf("Unsupported compact type %v", v)

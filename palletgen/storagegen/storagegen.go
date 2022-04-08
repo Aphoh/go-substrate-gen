@@ -4,22 +4,21 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata/pal"
+	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/typegen"
 	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
 
 type StorageGenerator struct {
-	F         *jen.File
-	storage   *pal.Storage
-	tygen     *typegen.TypeGenerator
-	typesPath string
+	F       *jen.File
+	storage *pal.Storage
+	tygen   *typegen.TypeGenerator
 }
 
-func NewStorageGenerator(pkgName string, storage *pal.Storage, tygen *typegen.TypeGenerator, typesPath string) StorageGenerator {
-	F := jen.NewFile(pkgName)
-	F.ImportAlias(utils.GSRPC, "gsrpc")
-	return StorageGenerator{F: F, storage: storage, tygen: tygen, typesPath: typesPath}
+func NewStorageGenerator(pkgPath string, storage *pal.Storage, tygen *typegen.TypeGenerator) StorageGenerator {
+	F := jen.NewFilePath(pkgPath)
+	return StorageGenerator{F: F, storage: storage, tygen: tygen}
 }
 
 func (sg *StorageGenerator) Generate() (err error) {
@@ -59,39 +58,53 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 		return err
 	}
 
-	// TODO: should this be just a pattern thingy
+	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
 
-	sg.F.Comment(fmt.Sprintf("Make a storage key for %v %v", item.Name, v))
-
-	var argStatement *jen.Statement
-	if gend.Global {
-		argStatement = jen.Id("args").Op("*").Id(gend.Name)
-	} else {
-		argStatement = jen.Id("args").Op("*").Qual(sg.typesPath, gend.Name)
+	parsedType := gend.MType().Ty
+	tn, err := parsedType.GetTypeName()
+	if err != nil {
+		return err
 	}
 
-	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(
-		// Function arguments
-		jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata"), // pointer to metadata
-		argStatement,
-	).BlockFunc(func(g *jen.Group) {
-		// var byteArgs [][]byte
-		g.Var().Id("byteArgs").Index().Index().Byte()
+	keyArgNames := []string{}
+
+	isTuple := tn == tdk.TDKTuple
+	if !isTuple {
+		// Not a tuple, just take the args
+		keyArgNames = append(keyArgNames, "args")
+		args = append(args, jen.Id("args").Custom(utils.TypeOpts, gend.Code()))
+	} else {
+		tdef, err := parsedType.GetTuple()
+		if err != nil {
+			return err
+		}
+		for i, typeId := range *tdef {
+			gend, err := sg.tygen.GetType(typeId)
+			if err != nil {
+				return err
+			}
+			argName := fmt.Sprintf("arg%v", i)
+			keyArgNames = append(keyArgNames, argName)
+			args = append(args, jen.Id(argName).Custom(utils.TypeOpts, gend.Code()))
+		}
+	}
+
+	//types.CreateStorageKey
+
+	sg.F.Comment(fmt.Sprintf("Make a storage key for %v id=%v", item.Name, v))
+
+	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
+		// byteArgs := [][]byte{}
+		g.Id("byteArgs").Op(":=").Index().Index().Byte().Values()
+		// encBytes := []byte{}
+		g.Id("encBytes").Op(":=").Index().Byte().Values()
 		// var err error
 		g.Var().Err().Error()
-		// Encode the given type.
-		g.If( // check if it's a tuple
-			jen.List(jen.Id("v"), jen.Id("ok")).Op(":=").Id("args").Op(".").Parens(jen.Qual(sg.typesPath, utils.TupleIface)).Op(";").Id("ok"),
-		).BlockFunc(func(g1 *jen.Group) {
-			// Set the byte args
-			g1.List(jen.Err(), jen.Id("byteArgs")).Op("=").Id("v").Dot(utils.TupleEncodeEach).Call()
-			utils.ErrorCheckG(g1)
-		}).Else().BlockFunc(func(g1 *jen.Group) {
-			g1.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id("args"))
-			utils.ErrorCheckG(g1)
-			g1.Id("byteArgs").Op("=").Index().Index().Byte().Values(jen.Id("encBytes"))
-		})
-		// byteArgs is set, just make the key
+		for _, argName := range keyArgNames {
+			g.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id(argName))
+			utils.ErrorCheckWithNil(g)
+			g.Id("byteArgs").Op("=").Append(jen.Id("byteArgs"), jen.Id("encBytes"))
+		}
 		g.ReturnFunc(func(g1 *jen.Group) {
 			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name), jen.Id("byteArgs").Op("..."))
 		})

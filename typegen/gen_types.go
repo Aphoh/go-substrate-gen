@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
 )
@@ -13,16 +14,17 @@ type GeneratedType interface {
 	DisplayName() string
 	// Actual code that should be rendered when referring to a type
 	Code() *jen.Statement
+	// Parsed type info associated w object
+	MType() *tdk.MType
 }
 
 // Gend
 // This represents a type that lives in a package
 type Gend struct {
-	Name string
-	Pkg  string
+	Name   string
+	Pkg    string
+	MTy *tdk.MType
 }
-
-var _ GeneratedType = &Gend{}
 
 // GlobalName implements GeneratedType
 func (eg *Gend) Code() *jen.Statement {
@@ -34,14 +36,25 @@ func (eg *Gend) DisplayName() string {
 	return eg.Name
 }
 
+// TypeInfo implements GeneratedType
+func (eg *Gend) MType() *tdk.MType {
+	return eg.MTy
+}
+
+var _ GeneratedType = &Gend{}
+
 // ArrayGend
 // Represents an array of the inner type
 type ArrayGend struct {
-	Len   string
-	Inner GeneratedType
+	Len    string
+	Inner  GeneratedType
+	MTy *tdk.MType
 }
 
-var _ GeneratedType = &ArrayGend{}
+// Info implements GeneratedType
+func (ag *ArrayGend) MType() *tdk.MType {
+	return ag.MTy
+}
 
 // GlobalName implements GeneratedType
 func (ag *ArrayGend) Code() *jen.Statement {
@@ -57,13 +70,21 @@ func (ag *ArrayGend) DisplayName() string {
 	return utils.AsName(ag.Inner.DisplayName(), "Array")
 }
 
+var _ GeneratedType = &ArrayGend{}
+
 // SliceGend
 // Represents a slice of the inner type
 type SliceGend struct {
-	Inner GeneratedType
+	Inner  GeneratedType
+	MTy *tdk.MType
 }
 
 var _ GeneratedType = &SliceGend{}
+
+// Info implements GeneratedType
+func (sg *SliceGend) MType() *tdk.MType {
+	return sg.MTy
+}
 
 // GlobalName implements GeneratedType
 func (sg *SliceGend) Code() *jen.Statement {
@@ -77,6 +98,7 @@ func (sg *SliceGend) DisplayName() string {
 
 type PrimitiveGend struct {
 	PrimName string
+	MTy   *tdk.MType
 }
 
 var _ GeneratedType = &PrimitiveGend{}
@@ -89,4 +111,9 @@ func (pg *PrimitiveGend) Code() *jen.Statement {
 // LocalName implements GeneratedType
 func (pg *PrimitiveGend) DisplayName() string {
 	return utils.AsName(pg.PrimName)
+}
+
+// Info implements GeneratedType
+func (pg *PrimitiveGend) MType() *tdk.MType {
+	return pg.MTy
 }

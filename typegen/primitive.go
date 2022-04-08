@@ -7,29 +7,30 @@ import (
 	"github.com/aphoh/go-substrate-gen/utils"
 )
 
-func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, id string) (GeneratedType, error) {
-  var g GeneratedType
+func (tg *TypeGenerator) GenPrimitive(primitive *tdk.TDPrimitive, mt *tdk.MType) (GeneratedType, error) {
+	var g GeneratedType
 	switch *primitive {
 	case "U8":
-		g = &PrimitiveGend{PrimName: "byte"}
+		g = &PrimitiveGend{PrimName: "byte", MTy: mt}
 	case "U16":
-		g = &PrimitiveGend{PrimName: "uint16"}
+		g = &PrimitiveGend{PrimName: "uint16", MTy: mt}
 	case "U32":
-		g = &PrimitiveGend{PrimName: "uint32"}
+		g = &PrimitiveGend{PrimName: "uint32", MTy: mt}
 	case "U64":
-		g = &PrimitiveGend{PrimName: "uint64"}
+		g = &PrimitiveGend{PrimName: "uint64", MTy: mt}
 	case "U128":
 		g = &Gend{
 			Name: "U128",
 			Pkg:  utils.CTYPES,
+			MTy:  mt,
 		}
 	case "Str":
-		g = &PrimitiveGend{PrimName: "string"}
+		g = &PrimitiveGend{PrimName: "string", MTy: mt}
 	case "Bool":
-		g = &PrimitiveGend{PrimName: "bool"}
+		g = &PrimitiveGend{PrimName: "bool", MTy: mt}
 	default:
 		return nil, fmt.Errorf("Unsupported primitive %s", string(*primitive))
 	}
-	tg.generated[id] = g
+	tg.generated[mt.Id] = g
 	return g, nil
 }

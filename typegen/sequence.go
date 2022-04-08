@@ -11,6 +11,7 @@ func (tg *TypeGenerator) GenSequence(seq *tdk.TDSequence, mt *tdk.MType) (Genera
 	}
 	g := &SliceGend{
 		Inner: seqG,
+		MTy:   mt,
 	}
 
 	tg.generated[mt.Id] = g

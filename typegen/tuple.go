@@ -12,7 +12,7 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (GeneratedTyp
 	var g GeneratedType
 	// Empty tuple maps to struct{}
 	if len(*tup) == 0 {
-		g = &PrimitiveGend{PrimName: "struct{}"}
+		g = &PrimitiveGend{PrimName: "struct{}", MTy: mt}
 		tg.generated[mt.Id] = g
 		return g, nil
 	}
@@ -20,7 +20,8 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (GeneratedTyp
 	tn := utils.AsName("Tuple", mt.Id)
 	g = &Gend{
 		Name: tn,
-		Pkg:  tg.pkgPath,
+		Pkg:  tg.PkgPath,
+		MTy:  mt,
 	}
 
 	tg.generated[mt.Id] = g

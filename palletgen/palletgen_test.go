@@ -15,10 +15,10 @@ func TestGenBigMetadata(t *testing.T) {
 	require.NoError(t, err)
 	mr, err := metadata.ParseMetadata(inp)
 
-	tg := typegen.NewTypeGenerator(&mr, "palletgen")
-	palletGen := NewPalletGenerator(mr.Pallets, &tg, "github.com/aphoh/go-substrate-gen/palletgen")
+	tg := typegen.NewTypeGenerator(&mr, "github.com/aphoh/go-substrate-gen/palletgen")
+	palletGen := NewPalletGenerator(mr.Pallets, &tg)
 
-	psystem, err := palletGen.GeneratePallet(0, "palletgen")
+	psystem, err := palletGen.GeneratePallet(0, "github.com/aphoh/go-substrate-gen/palletgen")
 	require.NoError(t, err)
 	tgen := fmt.Sprintf("%#v", tg.F)
 

@@ -9,18 +9,17 @@ import (
 )
 
 type PalletGenerator struct {
-	pallets   []pal.Pallet
-	tygen     *typegen.TypeGenerator
-	typesPath string
+	pallets []pal.Pallet
+	tygen   *typegen.TypeGenerator
 }
 
-func NewPalletGenerator(pallets []pal.Pallet, tygen *typegen.TypeGenerator, typesPath string) PalletGenerator {
-	return PalletGenerator{pallets: pallets, tygen: tygen, typesPath: typesPath}
+func NewPalletGenerator(pallets []pal.Pallet, tygen *typegen.TypeGenerator) PalletGenerator {
+	return PalletGenerator{pallets: pallets, tygen: tygen}
 }
 
 func (rg *PalletGenerator) GeneratePallet(i uint32, palletPkgName string) (string, error) {
 	p := rg.pallets[i]
-	sgen := storagegen.NewStorageGenerator(palletPkgName, &p.Storage, rg.tygen, rg.typesPath)
+	sgen := storagegen.NewStorageGenerator(palletPkgName, &p.Storage, rg.tygen)
 	err := sgen.Generate()
 	if err != nil {
 		return "", err
