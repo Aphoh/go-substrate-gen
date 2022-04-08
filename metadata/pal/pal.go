@@ -4,11 +4,11 @@ import "encoding/json"
 
 type Pallet struct {
 	Name      string      `json:"name"`
-	Storage   Storage     `json:"storage"`
-	Calls     STypeLookup `json:"calls"`
-	Events    STypeLookup `json:"events"`
+	Storage   *Storage     `json:"storage"`
+	Calls     *STypeLookup `json:"calls"`
+	Events    *STypeLookup `json:"events"`
 	Constants []SConstant `json:"constants"`
-	Errors    STypeLookup `json:"errors"`
+	Errors    *STypeLookup `json:"errors"`
 }
 
 type Storage struct {

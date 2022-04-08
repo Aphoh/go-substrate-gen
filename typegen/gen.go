@@ -23,7 +23,6 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
-	f.Type().Id(utils.TupleIface).Interface(jen.Id(utils.TupleEncodeEach).Call().Index().Index().Byte())
 	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}}
 }
 
