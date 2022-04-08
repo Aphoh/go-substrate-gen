@@ -39,27 +39,5 @@ func (tg *TypeGenerator) GenTuple(tup *tdk.TDTuple, mt *tdk.MType) (GeneratedTyp
 	}
 	tg.F.Comment(fmt.Sprintf("Tuple type %v", mt.Id))
 	tg.F.Type().Id(tn).Struct(code...)
-
-	// func (tup *Tuple__) TupleEncodeEach() ([][]byte, error)
-	tg.F.Func().Parens(
-		jen.Id("tup").Op("*").Id(tn),
-	).Id(utils.TupleEncodeEach).Call().Parens(
-		jen.List(jen.Index().Index().Byte(), jen.Error()),
-	).BlockFunc(func(g *jen.Group) {
-		g.Id("ba").Op(":=").Index().Index().Byte().Values()
-		g.Var().Id("bytes").Index().Byte()
-		g.Var().Err().Error()
-		for _, f := range fieldNames {
-			// bytes, err := ctypes.EncodeToBytes(tup.field)
-			g.List(jen.Id("bytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(
-				jen.Id("tup").Dot(f),
-			)
-			utils.ErrorCheckWithNil(g)
-			// ba = append(ba, bytes)
-			g.Id("ba").Op("=").Append(jen.List(jen.Id("ba"), jen.Id("bytes")))
-		}
-		g.Return(jen.List(jen.Id("ba"), jen.Nil()))
-	})
-
 	return g, nil
 }

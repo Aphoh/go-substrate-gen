@@ -43,6 +43,8 @@ func (sg *StorageGenerator) Generate() (err error) {
 				return err
 			}
 			err = sg.GenMap(val, &it, sg.storage.Prefix)
+		default:
+			return fmt.Errorf("Unsupported storage type %v in %v", ks[0], sg.storage.Prefix)
 		}
 		if err != nil {
 			return err
@@ -53,45 +55,77 @@ func (sg *StorageGenerator) Generate() (err error) {
 
 func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix string) error {
 	// get inner type
-	gend, err := sg.tygen.GetType(string(v))
+	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
+
+	sg.F.Comment(fmt.Sprintf("Make a storage key for %v id=%v", item.Name, v))
+	for _, doc := range item.Docs {
+		sg.F.Comment(doc)
+	}
+
+	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
+		g.ReturnFunc(func(g1 *jen.Group) {
+			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name))
+		})
+	})
+	return nil
+}
+
+// Generates args and they string names from a generated type. This recursively pulls away tuples.
+// Index is the starting index for the argument names (e.g. arg1, arg2...)
+func (sg *StorageGenerator) generateArgs(gend typegen.GeneratedType, index *uint32) ([]jen.Code, []string, error) {
+	args := []jen.Code{}
+	names := []string{}
+	parsedType := gend.MType().Ty
+	tn, err := parsedType.GetTypeName()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if tn != tdk.TDKTuple {
+		// Not a tuple, just take the args
+		name := fmt.Sprintf("arg%v", *index)
+    
+		names = append(names, name)
+		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
+		*index += 1
+	} else {
+		tdef, err := parsedType.GetTuple()
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, typeId := range *tdef {
+			gend, err := sg.tygen.GetType(typeId)
+			if err != nil {
+				return nil, nil, err
+			}
+			newArgs, newNames, err := sg.generateArgs(gend, index)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			names = append(names, newNames...)
+			args = append(args, newArgs...)
+		}
+	}
+	return args, names, nil
+}
+
+func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) error {
+	// get inner type
+	gend, err := sg.tygen.GetType(p.KeyTypeId)
 	if err != nil {
 		return err
 	}
 
 	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
+	var ind uint32 = 0
+	newArgs, keyArgNames, err := sg.generateArgs(gend, &ind)
+	args = append(args, newArgs...)
 
-	parsedType := gend.MType().Ty
-	tn, err := parsedType.GetTypeName()
-	if err != nil {
-		return err
+	sg.F.Comment(fmt.Sprintf("Make a storage key for %v", item.Name))
+	for _, doc := range item.Docs {
+		sg.F.Comment(doc)
 	}
-
-	keyArgNames := []string{}
-
-	isTuple := tn == tdk.TDKTuple
-	if !isTuple {
-		// Not a tuple, just take the args
-		keyArgNames = append(keyArgNames, "args")
-		args = append(args, jen.Id("args").Custom(utils.TypeOpts, gend.Code()))
-	} else {
-		tdef, err := parsedType.GetTuple()
-		if err != nil {
-			return err
-		}
-		for i, typeId := range *tdef {
-			gend, err := sg.tygen.GetType(typeId)
-			if err != nil {
-				return err
-			}
-			argName := fmt.Sprintf("arg%v", i)
-			keyArgNames = append(keyArgNames, argName)
-			args = append(args, jen.Id(argName).Custom(utils.TypeOpts, gend.Code()))
-		}
-	}
-
-	//types.CreateStorageKey
-
-	sg.F.Comment(fmt.Sprintf("Make a storage key for %v id=%v", item.Name, v))
 
 	sg.F.Func().Id(utils.AsName("Make", item.Name, "StorageKey")).Call(args...).Call(jen.Qual(utils.CTYPES, "StorageKey"), jen.Error()).BlockFunc(func(g *jen.Group) {
 		// byteArgs := [][]byte{}
@@ -109,9 +143,5 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 			g1.Qual(utils.CTYPES, "CreateStorageKey").Call(jen.Id("meta"), jen.Lit(prefix), jen.Lit(item.Name), jen.Id("byteArgs").Op("..."))
 		})
 	})
-	return nil
-}
-
-func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) error {
 	return nil
 }
