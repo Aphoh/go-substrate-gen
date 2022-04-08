@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aphoh/go-substrate-gen/metadata/pal"
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/typegen"
 	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/dave/jennifer/jen"
@@ -87,7 +86,7 @@ func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) 
 
 	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
 	var ind uint32 = 0
-	newArgs, keyArgNames, err := sg.generateArgs(gend, &ind)
+	newArgs, keyArgNames, err := sg.tygen.GenerateArgs(gend, &ind)
 	args = append(args, newArgs...)
 
 	sg.F.Comment(fmt.Sprintf("Make a storage key for %v", item.Name))
@@ -120,46 +119,6 @@ func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) 
 	sKeyArgNames := append([]string{"meta"}, keyArgNames...)
 	sg.generateRpcAccessor(methodName, args, sKeyArgNames, retGend, item)
 	return nil
-}
-
-// Generates args and they string names from a generated type. This recursively pulls away tuples.
-// Index is the starting index for the argument names (e.g. arg1, arg2...)
-func (sg *StorageGenerator) generateArgs(gend typegen.GeneratedType, index *uint32) ([]jen.Code, []string, error) {
-	args := []jen.Code{}
-	names := []string{}
-	parsedType := gend.MType().Ty
-	tn, err := parsedType.GetTypeName()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if tn != tdk.TDKTuple {
-		// Not a tuple, just take the args
-		name := fmt.Sprintf("arg%v", *index)
-
-		names = append(names, name)
-		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
-		*index += 1
-	} else {
-		tdef, err := parsedType.GetTuple()
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, typeId := range *tdef {
-			gend, err := sg.tygen.GetType(typeId)
-			if err != nil {
-				return nil, nil, err
-			}
-			newArgs, newNames, err := sg.generateArgs(gend, index)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			names = append(names, newNames...)
-			args = append(args, newArgs...)
-		}
-	}
-	return args, names, nil
 }
 
 func (sg *StorageGenerator) generateRpcAccessor(sKeyMethod string, sKeyArgs []jen.Code, sKeyArgNames []string, returnType typegen.GeneratedType, item *pal.SItem) error {

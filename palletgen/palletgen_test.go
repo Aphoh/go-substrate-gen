@@ -1,7 +1,6 @@
 package palletgen
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -16,15 +15,16 @@ func TestGenBigMetadata(t *testing.T) {
 	mr, err := metadata.ParseMetadata(inp)
 
 	tg := typegen.NewTypeGenerator(&mr, "github.com/aphoh/go-substrate-gen/palletgen")
-	palletGen := NewPalletGenerator(mr.Pallets, &tg)
+	palletGen := NewPalletGenerator(&mr.Pallets[18], &tg)
 
-	psystem, err := palletGen.GeneratePallet(0, "github.com/aphoh/go-substrate-gen/palletgen")
+	storage, err := palletGen.GenerateStorage("github.com/aphoh/go-substrate-gen/palletgen")
+	calls, err := palletGen.GenerateCalls("github.com/aphoh/go-substrate-gen/palletgen")
 	require.NoError(t, err)
-	tgen := fmt.Sprintf("%#v", tg.F)
+	types := tg.GetGenerated()
 
-	ioutil.WriteFile("psystem.go", []byte(psystem), 0644)
-
-	ioutil.WriteFile("types_out.go", []byte(tgen), 0644)
+	ioutil.WriteFile("test_storage.go", []byte(storage), 0644)
+	ioutil.WriteFile("test_calls.go", []byte(calls), 0644)
+	ioutil.WriteFile("test_types.go", []byte(types), 0644)
 
 	t.Fail()
 }

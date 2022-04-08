@@ -27,6 +27,10 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}}
 }
 
+func (tg *TypeGenerator) GetGenerated() string {
+  return fmt.Sprintf("%#v", tg.F)
+}
+
 func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 	if v, ok := tg.generated[id]; ok {
 		return v, nil
@@ -119,6 +123,46 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (string, e
 		sName = utils.AsName(sName, fmt.Sprint(tg.nameCount[sName]-1))
 	}
 	return sName, nil
+}
+
+// Generates args and they string names from a generated type. This recursively pulls away tuples.
+// Index is the starting index for the argument names (e.g. arg1, arg2...)
+func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.Code, []string, error) {
+	args := []jen.Code{}
+	names := []string{}
+	parsedType := gend.MType().Ty
+	tn, err := parsedType.GetTypeName()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if tn != tdk.TDKTuple {
+		// Not a tuple, just take the args
+		name := fmt.Sprintf("arg%v", *index)
+
+		names = append(names, name)
+		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
+		*index += 1
+	} else {
+		tdef, err := parsedType.GetTuple()
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, typeId := range *tdef {
+			gend, err := tg.GetType(typeId)
+			if err != nil {
+				return nil, nil, err
+			}
+			newArgs, newNames, err := tg.GenerateArgs(gend, index)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			names = append(names, newNames...)
+			args = append(args, newArgs...)
+		}
+	}
+	return args, names, nil
 }
 
 func (tg *TypeGenerator) GenAll() (string, error) {

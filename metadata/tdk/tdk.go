@@ -59,7 +59,7 @@ func (mt *MTypeInfo) GetComposite() (*TDComposite, error) {
 }
 
 func (mt *MTypeInfo) GetCompact() (*TDCompact, error) {
-	var res TDCompact 
+	var res TDCompact
 	err := json.Unmarshal(mt.Def[TDKCompact], &res)
 	return &res, err
 }
@@ -125,4 +125,6 @@ type TDVariant struct {
 type TDVariantElem struct {
 	Name   string    `json:"name"`
 	Fields []TDField `json:"fields"`
+	Index  string    `json:"index"`
+	Docs   []string    `json:"docs"`
 }
