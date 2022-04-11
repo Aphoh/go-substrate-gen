@@ -73,7 +73,8 @@ func (sg *StorageGenerator) GenPlain(v pal.STPlain, item *pal.SItem, prefix stri
 	if err != nil {
 		return err
 	}
-	sg.generateRpcAccessor(methodName, args, []string{"meta"}, retGend, item)
+	sg.generateGetter(true, methodName, args, []string{"meta"}, retGend, item)
+	sg.generateGetter(false, methodName, args, []string{"meta"}, retGend, item)
 	return nil
 }
 
@@ -117,13 +118,17 @@ func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) 
 		return err
 	}
 	sKeyArgNames := append([]string{"meta"}, keyArgNames...)
-	sg.generateRpcAccessor(methodName, args, sKeyArgNames, retGend, item)
+	sg.generateGetter(true, methodName, args, sKeyArgNames, retGend, item)
+	sg.generateGetter(false, methodName, args, sKeyArgNames, retGend, item)
 	return nil
 }
 
-func (sg *StorageGenerator) generateRpcAccessor(sKeyMethod string, sKeyArgs []jen.Code, sKeyArgNames []string, returnType typegen.GeneratedType, item *pal.SItem) error {
+func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string, sKeyArgs []jen.Code, sKeyArgNames []string, returnType typegen.GeneratedType, item *pal.SItem) error {
 
 	args := []jen.Code{jen.Id("state").Op("*").Qual(utils.GSRPCState, "State")}
+	if withBlockhash {
+		args = append(args, jen.Id("bhash").Qual(utils.CTYPES, "Hash"))
+	}
 	args = append(args, sKeyArgs...)
 	keyArgCode := []jen.Code{}
 	for _, name := range sKeyArgNames {
@@ -144,20 +149,33 @@ func (sg *StorageGenerator) generateRpcAccessor(sKeyMethod string, sKeyArgs []je
 		if _, err := hex.DecodeString(hexStr); err != nil {
 			return fmt.Errorf("Invalid hex string for item %v, %v", item.Name, item.Fallback)
 		}
-		sg.F.Var().List(jen.Id(defaultBytesName), jen.Id("_")).Op("=").Qual("encoding/hex", "DecodeString").Call(jen.Lit(hexStr))
+		if withBlockhash {
+      // Don't redefine both for with blockhash and without
+			sg.F.Var().List(jen.Id(defaultBytesName), jen.Id("_")).Op("=").Qual("encoding/hex", "DecodeString").Call(jen.Lit(hexStr))
+		}
 	}
-	sg.F.Func().Id(utils.AsName("Get", item.Name)).Call(args...).Call(ret).BlockFunc(func(g *jen.Group) {
+
+	var methodName string
+	if withBlockhash {
+		methodName = utils.AsName("Get", item.Name)
+	} else {
+		methodName = utils.AsName("Get", item.Name, "Latest")
+	}
+
+	sg.F.Func().Id(methodName).Call(args...).Call(ret).BlockFunc(func(g *jen.Group) {
 		// Get storage key
 		g.List(jen.Id("key"), jen.Err()).Op(":=").Id(sKeyMethod).Call(keyArgCode...)
 		utils.ErrorCheckWithNamedArgs(g)
-		if item.Modifier == "Optional" {
-			// If optional, just return the result of the GetStorage Call
+		g.Var().Id("isSome").Bool()
+		if withBlockhash {
+			g.List(jen.Id("isSome"), jen.Err()).Op("=").Id("state").Dot("GetStorage").Call(jen.Id("key"), jen.Op("&").Id("ret"), jen.Id("bhash"))
+		} else {
 			g.List(jen.Id("isSome"), jen.Err()).Op("=").Id("state").Dot("GetStorageLatest").Call(jen.Id("key"), jen.Op("&").Id("ret"))
-			utils.ErrorCheckWithNamedArgs(g)
-		} else if item.Modifier == "Default" {
+		}
+		utils.ErrorCheckWithNamedArgs(g)
+
+		if item.Modifier == "Default" {
 			// If not optional, return the default when isSome is false
-			g.List(jen.Id("isSome"), jen.Err()).Op(":=").Id("state").Dot("GetStorageLatest").Call(jen.Id("key"), jen.Op("&").Id("ret"))
-			utils.ErrorCheckWithNamedArgs(g)
 			g.If(jen.Op("!").Id("isSome")).BlockFunc(func(g1 *jen.Group) {
 				g1.Err().Op("=").Qual(utils.CTYPES, "DecodeFromBytes").Call(jen.Id(defaultBytesName), jen.Op("&").Id("ret"))
 				utils.ErrorCheckWithNamedArgs(g1)

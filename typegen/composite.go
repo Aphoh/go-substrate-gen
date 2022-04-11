@@ -35,7 +35,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (Genera
 	code := []jen.Code{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
-		fc, _, err := tg.fieldCode(field, "", fmt.Sprint(i))
+		fc, _, err := tg.fieldCode(field, "", "") // Composite fields should have unique names right?
 		if err != nil {
 			return nil, err
 		}
