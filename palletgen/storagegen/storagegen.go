@@ -150,7 +150,7 @@ func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string
 			return fmt.Errorf("Invalid hex string for item %v, %v", item.Name, item.Fallback)
 		}
 		if withBlockhash {
-      // Don't redefine both for with blockhash and without
+			// Don't redefine both for with blockhash and without
 			sg.F.Var().List(jen.Id(defaultBytesName), jen.Id("_")).Op("=").Qual("encoding/hex", "DecodeString").Call(jen.Lit(hexStr))
 		}
 	}
@@ -166,7 +166,10 @@ func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string
 		// Get storage key
 		g.List(jen.Id("key"), jen.Err()).Op(":=").Id(sKeyMethod).Call(keyArgCode...)
 		utils.ErrorCheckWithNamedArgs(g)
-		g.Var().Id("isSome").Bool()
+		if item.Modifier != "Optional" {
+      // if it's optional, this is defined in the return args
+			g.Var().Id("isSome").Bool()
+		}
 		if withBlockhash {
 			g.List(jen.Id("isSome"), jen.Err()).Op("=").Id("state").Dot("GetStorage").Call(jen.Id("key"), jen.Op("&").Id("ret"), jen.Id("bhash"))
 		} else {

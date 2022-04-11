@@ -27,7 +27,7 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 }
 
 func (tg *TypeGenerator) GetGenerated() string {
-  return fmt.Sprintf("%#v", tg.F)
+	return fmt.Sprintf("%#v", tg.F)
 }
 
 func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
@@ -140,7 +140,12 @@ func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.
 		name := fmt.Sprintf("arg%v", *index)
 
 		names = append(names, name)
-		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
+		if gend.IsPrimitive() {
+			args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
+		} else {
+      // Use a pointer if it's not primitive
+			args = append(args, jen.Id(name).Op("*").Custom(utils.TypeOpts, gend.Code()))
+		}
 		*index += 1
 	} else {
 		tdef, err := parsedType.GetTuple()

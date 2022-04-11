@@ -2,6 +2,7 @@ package typegen
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
@@ -63,9 +64,14 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 	).BlockFunc(func(g1 *jen.Group) {
 		// for each variant, check if variant
 		for i, variant := range v.Variants {
+      // This index is not necessarily the index that it appears at in the list
+      varI, err := strconv.Atoi(variant.Index)
+      if err != nil {
+        panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
+      }
 			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
-				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(i))
+				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
 				utils.ErrorCheckG(g2)
 				for j := range variant.Fields {
 					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(variantFieldNames[i][j]))
@@ -90,8 +96,12 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		// switch variant {..}
 		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
-				// case i:
-				g2.Case(jen.Lit(i)).BlockFunc(func(g3 *jen.Group) {
+        // This index is not necessarily the index that it appears at in the list
+				varI, err := strconv.Atoi(variant.Index)
+				if err != nil {
+					panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
+				}
+				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
 					g3.Id("ty").Dot(variantIsNames[i]).Op("=").True()
 					// decode remaining fields

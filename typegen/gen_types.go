@@ -16,14 +16,18 @@ type GeneratedType interface {
 	Code() *jen.Statement
 	// Parsed type info associated w object
 	MType() *tdk.MType
+	// Is a globally referred to field or does it live in another package
+  // E.g. []byte and byte are primitive, ctypes.UCompact is not.
+  // This is used to know when to pass things to SCALE by reference v.s. by value
+	IsPrimitive() bool
 }
 
 // Gend
 // This represents a type that lives in a package
 type Gend struct {
-	Name   string
-	Pkg    string
-	MTy *tdk.MType
+	Name string
+	Pkg  string
+	MTy  *tdk.MType
 }
 
 // GlobalName implements GeneratedType
@@ -41,14 +45,23 @@ func (eg *Gend) MType() *tdk.MType {
 	return eg.MTy
 }
 
+func (eg *Gend) IsPrimitive() bool {
+	return false
+}
+
 var _ GeneratedType = &Gend{}
 
 // ArrayGend
 // Represents an array of the inner type
 type ArrayGend struct {
-	Len    string
-	Inner  GeneratedType
-	MTy *tdk.MType
+	Len   string
+	Inner GeneratedType
+	MTy   *tdk.MType
+}
+
+// IsPrimitive implements GeneratedType
+func (ag *ArrayGend) IsPrimitive() bool {
+	return ag.Inner.IsPrimitive()
 }
 
 // Info implements GeneratedType
@@ -75,8 +88,13 @@ var _ GeneratedType = &ArrayGend{}
 // SliceGend
 // Represents a slice of the inner type
 type SliceGend struct {
-	Inner  GeneratedType
-	MTy *tdk.MType
+	Inner GeneratedType
+	MTy   *tdk.MType
+}
+
+// IsPrimitive implements GeneratedType
+func (sg *SliceGend) IsPrimitive() bool {
+	return sg.Inner.IsPrimitive()
 }
 
 var _ GeneratedType = &SliceGend{}
@@ -98,7 +116,12 @@ func (sg *SliceGend) DisplayName() string {
 
 type PrimitiveGend struct {
 	PrimName string
-	MTy   *tdk.MType
+	MTy      *tdk.MType
+}
+
+// IsPrimitive implements GeneratedType
+func (*PrimitiveGend) IsPrimitive() bool {
+	return true
 }
 
 var _ GeneratedType = &PrimitiveGend{}
