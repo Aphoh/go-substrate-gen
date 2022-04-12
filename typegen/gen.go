@@ -10,11 +10,17 @@ import (
 )
 
 type TypeGenerator struct {
-	F         *jen.File
-	PkgPath   string
-	mtypes    map[string]tdk.MType
-	generated map[string]GeneratedType
-	nameCount map[string]uint32
+	F           *jen.File
+	PkgPath     string
+	mtypes      map[string]tdk.MType
+	generated   map[string]GeneratedType
+	nameCount   map[string]uint32
+	namegenOpts map[string]NamegenOpt
+}
+
+type NamegenOpt struct {
+	fullParams bool
+	fullPath   bool
 }
 
 func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
@@ -23,7 +29,21 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		mtypes[tdef.Id] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
-	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}}
+	// Public, Event, Error, Call, Signature <- full path
+	// Option, WeakBoundedVec, BoundedVec, BTreeMap <- Full params
+	// TODO: take in config?
+	ng := map[string]NamegenOpt{
+		"Public":         {fullPath: true},
+		"Event":          {fullPath: true},
+		"Error":          {fullPath: true},
+		"Call":           {fullPath: true},
+		"Signature":      {fullPath: true},
+		"Option":         {fullParams: true},
+		"WeakBoundedVec": {fullParams: true},
+		"BoundedVec":     {fullParams: true},
+		"BTreeMap":       {fullParams: true},
+	}
+	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
 }
 
 func (tg *TypeGenerator) GetGenerated() string {
@@ -90,31 +110,62 @@ func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 	}
 }
 
-func (tg *TypeGenerator) getStructName(mt *tdk.MType, base ...string) (string, error) {
-	nameParams := append(mt.Ty.Path, base...)
-	sName := utils.AsName(nameParams...)
-	// Add params, stopping if its unique
-	if tg.nameCount[sName] != 0 {
-		for _, p := range mt.Ty.Params {
-			if p.Type != nil {
-				pgend, err := tg.GetType(*p.Type)
-				if err != nil {
-					return "", err
-				}
-				if p.Name != "" {
-					nameParams = append(nameParams, p.Name)
-				}
-				nameParams = append(nameParams, pgend.DisplayName())
-				sName = utils.AsName(nameParams...)
-				if tg.nameCount[sName] == 0 {
-					break
-				}
+func reverse(strs []string) (rev []string) {
+	for _, s := range strs {
+		rev = append(rev, s)
+	}
+	return
+}
+
+func (tg *TypeGenerator) nameFromParams(base []string, params []tdk.MTypeParam) (string, error) {
+	sName := utils.AsName(base...)
+	for _, p := range params {
+		if p.Type != nil {
+			pgend, err := tg.GetType(*p.Type)
+			if err != nil {
+				return "", err
+			}
+			if p.Name != "" {
+				base = append(base, p.Name)
+			}
+			base = append(base, pgend.DisplayName())
+			sName = utils.AsName(base...)
+		}
+	}
+	return sName, nil
+}
+
+func (tg *TypeGenerator) getStructName(mt *tdk.MType) (string, error) {
+	baseName := mt.Ty.Path[len(mt.Ty.Path)-1]
+	opts := tg.namegenOpts[baseName]
+	// by default only take the last elt of the path (the rust struct name)
+	nameWords := []string{baseName}
+	if opts.fullPath {
+		nameWords = mt.Ty.Path
+	}
+	sName := utils.AsName(nameWords...)
+
+	var err error
+	if opts.fullParams {
+		// Get the name with all parameters
+		sName, err = tg.nameFromParams(nameWords, mt.Ty.Params)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// Add params, stopping if its unique
+		for i := range mt.Ty.Params {
+			sName, err = tg.nameFromParams(nameWords, mt.Ty.Params[:i])
+			if err != nil {
+				return "", err
+			}
+			if tg.nameCount[sName] == 0 {
+				break
 			}
 		}
 	}
 
-	// Even with params, this name scheme is not unique, so we may have to add an integer postfix
-	sName = utils.AsName(nameParams...)
+	// Even with params/path, this name scheme is not unique, so we may have to add an integer postfix
 	if tg.nameCount[sName] == 0 {
 		tg.nameCount[sName] = 1
 	} else {
@@ -143,7 +194,7 @@ func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.
 		if gend.IsPrimitive() {
 			args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
 		} else {
-      // Use a pointer if it's not primitive
+			// Use a pointer if it's not primitive
 			args = append(args, jen.Id(name).Op("*").Custom(utils.TypeOpts, gend.Code()))
 		}
 		*index += 1
