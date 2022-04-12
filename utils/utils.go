@@ -15,14 +15,25 @@ const TupleEncodeEach = "TupleEncodeEach"
 
 var TypeOpts = jen.Options{}
 
+var rule = []string{"{", "",
+	"}", "",
+	"[]", "Slice",
+	"[", "",
+	"]", "",
+}
+
 func AsName(strs ...string) string {
-	n := stringy.New(strings.Join(strs, "_")).CamelCase(
-		"{", "",
-		"}", "",
-		"[]", "Slice",
-		"[", "",
-		"]", "")
-	return n
+	return stringy.New(strings.Join(strs, "_")).CamelCase(rule...)
+}
+
+func AsArgName(strs ...string) string {
+	base := AsName(strs...)
+  if len(base) == 0 {
+    return ""
+  }
+	// Lowercase the first char
+	base = strings.ToLower(base[:1]) + base[1:]
+	return base
 }
 
 func ErrorCheckG(s *jen.Group) {

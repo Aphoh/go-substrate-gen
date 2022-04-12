@@ -87,7 +87,8 @@ func (sg *StorageGenerator) GenMap(p pal.STMap, item *pal.SItem, prefix string) 
 
 	args := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")} // pointer to metadaa
 	var ind uint32 = 0
-	newArgs, keyArgNames, err := sg.tygen.GenerateArgs(gend, &ind)
+  // Don't have a field name, so we prefix by the type name
+	newArgs, keyArgNames, err := sg.tygen.GenerateArgs(gend, &ind, gend.DisplayName())
 	args = append(args, newArgs...)
 
 	sg.F.Comment(fmt.Sprintf("Make a storage key for %v", item.Name))
@@ -167,7 +168,7 @@ func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string
 		g.List(jen.Id("key"), jen.Err()).Op(":=").Id(sKeyMethod).Call(keyArgCode...)
 		utils.ErrorCheckWithNamedArgs(g)
 		if item.Modifier != "Optional" {
-      // if it's optional, this is defined in the return args
+			// if it's optional, this is defined in the return args
 			g.Var().Id("isSome").Bool()
 		}
 		if withBlockhash {

@@ -52,7 +52,7 @@ func (cg *CallGenerator) Generate() error {
 			if err != nil {
 				return err
 			}
-			fieldArgs, fieldArgNames, err := cg.tygen.GenerateArgs(fGend, &callInd)
+			fieldArgs, fieldArgNames, err := cg.tygen.GenerateArgs(fGend, &callInd, field.Name)
 			funcArgs = append(funcArgs, fieldArgs...)
 			funcArgNames = append(funcArgNames, fieldArgNames...)
 		}

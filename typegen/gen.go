@@ -177,7 +177,7 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType) (string, error) {
 
 // Generates args and they string names from a generated type. This recursively pulls away tuples.
 // Index is the starting index for the argument names (e.g. arg1, arg2...)
-func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.Code, []string, error) {
+func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32, namePrefixes ...string) ([]jen.Code, []string, error) {
 	args := []jen.Code{}
 	names := []string{}
 	parsedType := gend.MType().Ty
@@ -187,8 +187,8 @@ func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.
 	}
 
 	if tn != tdk.TDKTuple {
-		// Not a tuple, just take the args
-		name := fmt.Sprintf("arg%v", *index)
+		// Not a tuple, just add an argument. Use the index to guarantee uniqueness.
+		name := utils.AsArgName(append(namePrefixes, fmt.Sprint(*index))...)
 
 		names = append(names, name)
 		if gend.IsPrimitive() {
@@ -208,7 +208,7 @@ func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32) ([]jen.
 			if err != nil {
 				return nil, nil, err
 			}
-			newArgs, newNames, err := tg.GenerateArgs(gend, index)
+			newArgs, newNames, err := tg.GenerateArgs(gend, index, namePrefixes...)
 			if err != nil {
 				return nil, nil, err
 			}
