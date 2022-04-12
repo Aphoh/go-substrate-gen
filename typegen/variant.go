@@ -44,7 +44,8 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		variantFieldNames = append(variantFieldNames, []string{})
 
 		for j, f := range variant.Fields {
-			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", variant.Name), fmt.Sprint(j))
+			useTypeName := len(variant.Fields) > 1
+			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", variant.Name), fmt.Sprint(j), useTypeName)
 			if err != nil {
 				return nil, err
 			}
@@ -57,18 +58,21 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(mt.Ty.Path...), mt.Id))
 	tg.F.Type().Id(g.Name).Struct(inner...)
 
-	// func (ty *g.name) Encode(encoder scale.Encoder) (err error) {...}
+	// IMPORTANT: we only implement encode for the actual type, not the pointer (ty *g.name),
+	// because otherwise reflection will fail to see that the object has the method if it's embedded
+	// in another type
+	// func (ty g.name) Encode(encoder scale.Encoder) (err error) {...}
 	tg.F.Func().Params(
-		jen.Id("ty").Op("*").Id(g.Name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
+		jen.Id("ty").Id(g.Name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// for each variant, check if variant
 		for i, variant := range v.Variants {
-      // This index is not necessarily the index that it appears at in the list
-      varI, err := strconv.Atoi(variant.Index)
-      if err != nil {
-        panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
-      }
+			// This index is not necessarily the index that it appears at in the list
+			varI, err := strconv.Atoi(variant.Index)
+			if err != nil {
+				panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
+			}
 			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
@@ -96,7 +100,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		// switch variant {..}
 		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
-        // This index is not necessarily the index that it appears at in the list
+				// This index is not necessarily the index that it appears at in the list
 				varI, err := strconv.Atoi(variant.Index)
 				if err != nil {
 					panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))

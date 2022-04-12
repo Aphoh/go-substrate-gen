@@ -35,7 +35,7 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (Genera
 	code := []jen.Code{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
-		fc, _, err := tg.fieldCode(field, "", "") // Composite fields should have unique names right?
+		fc, _, err := tg.fieldCode(field, "", "", false) // Composite fields should have unique names right?
 		if err != nil {
 			return nil, err
 		}
@@ -49,9 +49,13 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (Genera
 	return g, nil
 }
 
-func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string) ([]jen.Code, string, error) {
-	fieldName := f.Name
-	if fieldName == "" {
+func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string, useTypeName bool) ([]jen.Code, string, error) {
+	var fieldName string
+	if f.Name != "" {
+		fieldName = f.Name
+	} else if useTypeName && f.TypeName != "" {
+		fieldName = f.TypeName
+	} else {
 		fieldName = "Field"
 	}
 	fieldName = utils.AsName(prefix, fieldName, postfix)

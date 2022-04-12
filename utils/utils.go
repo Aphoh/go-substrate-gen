@@ -11,7 +11,6 @@ const CTYPES = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 const GSRPC = "github.com/centrifuge/go-substrate-rpc-client/v4"
 const GSRPCState = "github.com/centrifuge/go-substrate-rpc-client/v4/rpc/state"
 const TupleIface = "TupleIface"
-const TupleEncodeEach = "TupleEncodeEach"
 
 var TypeOpts = jen.Options{}
 
@@ -20,6 +19,13 @@ var rule = []string{"{", "",
 	"[]", "Slice",
 	"[", "",
 	"]", "",
+	">", "",
+	"<", "",
+	":", "",
+	";", "",
+	"\n", "",
+	",", "",
+	" ", "",
 }
 
 func AsName(strs ...string) string {
@@ -28,9 +34,9 @@ func AsName(strs ...string) string {
 
 func AsArgName(strs ...string) string {
 	base := AsName(strs...)
-  if len(base) == 0 {
-    return ""
-  }
+	if len(base) == 0 {
+		return ""
+	}
 	// Lowercase the first char
 	base = strings.ToLower(base[:1]) + base[1:]
 	return base
