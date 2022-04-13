@@ -35,7 +35,7 @@ func TestGenBigMetadata(t *testing.T) {
 }
 
 // Enable this to see some sample output
-func TestSamplePalletOutput(t *testing.T) {
+func noTestSamplePalletOutput(t *testing.T) {
 	inp, err := ioutil.ReadFile("../polka-meta.json")
 	require.NoError(t, err)
 	mr, encMeta, err := metadata.ParseMetadata(inp)

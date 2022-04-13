@@ -13,10 +13,10 @@ import (
 func TestGenBigMetadata(t *testing.T) {
 	inp, err := ioutil.ReadFile("../polka-meta.json")
 	require.NoError(t, err)
-	mr, err := metadata.ParseMetadata(inp)
+	mr, encMeta, err := metadata.ParseMetadata(inp)
 	require.NoError(t, err)
 
-	tg := NewTypeGenerator(mr, "github.com/aphoh/go-substrate-gen/typegen")
+	tg := NewTypeGenerator(mr, encMeta, "github.com/aphoh/go-substrate-gen/typegen")
 	res, err := tg.GenAll()
 
 	require.False(t, strings.Contains(res, "%!v(PANIC="), "Generated code contains errors")
