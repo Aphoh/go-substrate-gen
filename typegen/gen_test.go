@@ -2,6 +2,7 @@ package typegen
 
 import (
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/aphoh/go-substrate-gen/metadata"
@@ -89,7 +90,7 @@ func TestGenSmallMetadata(t *testing.T) {
 }
 
 // TODO: better method for testing
-func noTestGenBigMetadata(t *testing.T) {
+func TestGenBigMetadata(t *testing.T) {
 	inp, err := ioutil.ReadFile("../json-gen/meta.json")
 	require.NoError(t, err)
 	mr, err := metadata.ParseMetadata(inp)
@@ -97,7 +98,7 @@ func noTestGenBigMetadata(t *testing.T) {
 	tg := NewTypeGenerator(&mr, "github.com/aphoh/go-substrate-gen/typegen")
 	res, err := tg.GenAll()
 
-	ioutil.WriteFile("test_out.go", []byte(res), 0644)
+	require.False(t, strings.Contains(res, "%!v(PANIC="), "Generated code contains errors")
 
-	t.Fail()
+	ioutil.WriteFile("test_out.go", []byte(res), 0644)
 }

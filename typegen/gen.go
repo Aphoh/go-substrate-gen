@@ -69,6 +69,12 @@ func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 			return nil, err
 		}
 		return tg.GenArray(v, &mt)
+	case tdk.TDKBitSequence:
+		bs, err := mt.Ty.GetBitsequence()
+		if err != nil {
+			return nil, err
+		}
+		return tg.GenBitsequence(bs, &mt)
 	case tdk.TDKCompact:
 		v, err := mt.Ty.GetCompact()
 		if err != nil {
@@ -106,7 +112,7 @@ func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
 		}
 		return tg.GenVariant(v, &mt)
 	default:
-		return nil, fmt.Errorf("Got bad type name=%v\n", tn)
+		return nil, fmt.Errorf("Got bad type name=%v for id=%v\n", tn, id)
 	}
 }
 

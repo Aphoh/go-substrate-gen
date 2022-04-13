@@ -52,6 +52,12 @@ func (mt *MTypeInfo) GetArray() (*TDArray, error) {
 	return &res, err
 }
 
+func (mt *MTypeInfo) GetBitsequence() (*TDBitsequence, error) {
+	var res TDBitsequence
+	err := json.Unmarshal(mt.Def[TDKBitSequence], &res)
+	return &res, err
+}
+
 func (mt *MTypeInfo) GetComposite() (*TDComposite, error) {
 	var res TDComposite
 	err := json.Unmarshal(mt.Def[TDKComposite], &res)
@@ -126,5 +132,10 @@ type TDVariantElem struct {
 	Name   string    `json:"name"`
 	Fields []TDField `json:"fields"`
 	Index  string    `json:"index"`
-	Docs   []string    `json:"docs"`
+	Docs   []string  `json:"docs"`
+}
+
+type TDBitsequence struct {
+	BitStoreTypeId      string `json:"bitStoreType"`
+	BitStoreOrderTypeId string `json:"bitOrderType"`
 }

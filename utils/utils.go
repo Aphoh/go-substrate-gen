@@ -26,6 +26,8 @@ var rule = []string{"{", "",
 	"\n", "",
 	",", "",
 	" ", "",
+	"(", "",
+	")", "",
 }
 
 func AsName(strs ...string) string {

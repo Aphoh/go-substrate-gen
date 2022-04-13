@@ -33,11 +33,22 @@ func (tg *TypeGenerator) GenComposite(v *tdk.TDComposite, mt *tdk.MType) (Genera
 	tg.generated[mt.Id] = g
 
 	code := []jen.Code{}
+	fNameCounts := map[string]uint32{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.TypeId)))
-		fc, _, err := tg.fieldCode(field, "", "", false) // Composite fields should have unique names right?
+		// Turns out composites don't have unique names... sob
+		fc, fname, err := tg.fieldCode(field, "", "", false)
 		if err != nil {
 			return nil, err
+		}
+		fNameCounts[fname] += 1
+		cnt := fNameCounts[fname]
+		if cnt > 1 {
+			// Name already exists, generate a new one with a postfix
+			fc, fname, err = tg.fieldCode(field, "", fmt.Sprint(cnt-1), false)
+			if err != nil {
+				return nil, err
+			}
 		}
 		code = append(code, fc...)
 	}
@@ -74,7 +85,7 @@ func (tg *TypeGenerator) fieldCode(f tdk.TDField, prefix, postfix string, useTyp
 
 	// Add the field
 	// If it's a rust pointer, use a pointer to avoid recursive structs
-	if strings.HasPrefix(f.TypeName, "Box") {
+	if strings.HasPrefix(f.TypeName, "Box") || strings.HasPrefix(f.TypeName, "alloc::boxed::Box") || strings.HasPrefix(f.TypeName, "OpaqueCall") {
 		code = append(code, jen.Id(fieldName).Op("*").Custom(utils.TypeOpts, fieldTy.Code()))
 	} else {
 		code = append(code, jen.Id(fieldName).Custom(utils.TypeOpts, fieldTy.Code()))
