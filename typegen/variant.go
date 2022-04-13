@@ -31,7 +31,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	}
 	tg.generated[mt.ID.Int64()] = g
 
-	inner := []jen.Code{}
+	inner := []jen.Code{jen.Id("variant").Id("uint8")}
 
 	variantIsNames := []string{}
 	variantFieldNames := [][]string{}
@@ -62,7 +62,8 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	// in another type
 	// func (ty g.name) Encode(encoder scale.Encoder) (err error) {...}
 	tg.F.Func().Params(
-		jen.Id("ty").Id(g.Name)).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
+		jen.Id("ty").Id(g.Name),
+	).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// for each variant, check if variant
@@ -87,14 +88,15 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 
 	// func (ty *g.name) Decode(decoder scale.Decoder) (err error) {...}
 	tg.F.Func().Params(
-		jen.Id("ty").Op("*").Id(g.Name)).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
+		jen.Id("ty").Op("*").Id(g.Name),
+	).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// variant, err := decoder.ReadOneByte()
-		g1.Id("variant, err").Op(":=").Id("decoder").Dot("ReadOneByte").Call()
+		g1.List(jen.Id("ty").Dot("variant"), jen.Err()).Op("=").Id("decoder").Dot("ReadOneByte").Call()
 		utils.ErrorCheckG(g1)
 		// switch variant {..}
-		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
+		g1.Switch(jen.Id("ty").Dot("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
 				// This index is not necessarily the index that it appears at in the list
 				varI := uint8(variant.Index)
@@ -114,6 +116,12 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 			g2.Default().Block(jen.Return(jen.Qual("fmt", "Errorf").Call(jen.Lit("Unrecognized variant"))))
 		})
 	})
+
+	tg.F.Func().Params(
+		jen.Id("ty").Op("*").Id(g.Name),
+	).Id("Variant").Call().Id("uint8").Block(
+		jen.Return().Id("ty").Dot("variant"),
+	)
 
 	return g, nil
 }
