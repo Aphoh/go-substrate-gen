@@ -3,6 +3,7 @@ package utils
 import (
 	"strings"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 	"github.com/gobeam/stringy"
 )
@@ -60,4 +61,11 @@ func ErrorCheckWithNamedArgs(s *jen.Group) {
 	s.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(),
 	)
+}
+
+func PathStrs(p types.Si1Path) (r []string) {
+	for _, i := range p {
+		r = append(r, string(i))
+	}
+	return
 }

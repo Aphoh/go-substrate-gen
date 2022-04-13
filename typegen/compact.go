@@ -3,12 +3,12 @@ package typegen
 import (
 	"fmt"
 
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
-func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (GeneratedType, error) {
-	innerT, err := tg.GetType(v.TypeId)
+func (tg *TypeGenerator) GenCompact(v *types.Si1TypeDefCompact, mt *types.PortableTypeV14) (GeneratedType, error) {
+	innerT, err := tg.GetType(v.Type.Int64())
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +45,6 @@ func (tg *TypeGenerator) GenCompact(v *tdk.TDCompact, mt *tdk.MType) (GeneratedT
 		return nil, fmt.Errorf("Unsupported compact type %v", v)
 	}
 
-	tg.generated[mt.Id] = g
+	tg.generated[mt.ID.Int64()] = g
 	return g, nil
 }

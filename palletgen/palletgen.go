@@ -3,26 +3,26 @@ package palletgen
 import (
 	"fmt"
 
-	"github.com/aphoh/go-substrate-gen/metadata/pal"
 	"github.com/aphoh/go-substrate-gen/palletgen/callgen"
 	"github.com/aphoh/go-substrate-gen/palletgen/storagegen"
 	"github.com/aphoh/go-substrate-gen/typegen"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
 type PalletGenerator struct {
-	pallet *pal.Pallet
+	pallet *types.PalletMetadataV14
 	tygen  *typegen.TypeGenerator
 }
 
-func NewPalletGenerator(pallet *pal.Pallet, tygen *typegen.TypeGenerator) PalletGenerator {
+func NewPalletGenerator(pallet *types.PalletMetadataV14, tygen *typegen.TypeGenerator) PalletGenerator {
 	return PalletGenerator{pallet: pallet, tygen: tygen}
 }
 
 func (rg *PalletGenerator) GenerateStorage(pkgFilePath string) (string, bool, error) {
-  if rg.pallet.Storage == nil {
-    return "", false, nil
-  }
-	sgen := storagegen.NewStorageGenerator(pkgFilePath, rg.pallet.Storage, rg.tygen)
+	if !rg.pallet.HasStorage {
+		return "", false, nil
+	}
+	sgen := storagegen.NewStorageGenerator(pkgFilePath, &rg.pallet.Storage, rg.tygen)
 	err := sgen.Generate()
 	if err != nil {
 		return "", false, err
@@ -32,9 +32,9 @@ func (rg *PalletGenerator) GenerateStorage(pkgFilePath string) (string, bool, er
 }
 
 func (rg *PalletGenerator) GenerateCalls(pkgFilePath string) (string, bool, error) {
-  if rg.pallet.Calls == nil {
-    return "", false, nil
-  }
+	if !rg.pallet.HasCalls {
+		return "", false, nil
+	}
 	callGen := callgen.NewCallGenerator(pkgFilePath, rg.pallet, rg.tygen)
 	err := callGen.Generate()
 	if err != nil {

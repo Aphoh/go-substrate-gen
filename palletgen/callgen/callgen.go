@@ -3,56 +3,50 @@ package callgen
 import (
 	"fmt"
 
-	"github.com/aphoh/go-substrate-gen/metadata/pal"
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/typegen"
 	"github.com/aphoh/go-substrate-gen/utils"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 )
 
 type CallGenerator struct {
 	F      *jen.File
-	pallet *pal.Pallet
+	pallet *types.PalletMetadataV14
 	tygen  *typegen.TypeGenerator
 }
 
-func NewCallGenerator(pkgPath string, pallet *pal.Pallet, tygen *typegen.TypeGenerator) CallGenerator {
+func NewCallGenerator(pkgPath string, pallet *types.PalletMetadataV14, tygen *typegen.TypeGenerator) CallGenerator {
 	F := jen.NewFilePath(pkgPath)
 	return CallGenerator{F: F, pallet: pallet, tygen: tygen}
 }
 
 func (cg *CallGenerator) Generate() error {
-	gend, err := cg.tygen.GetType(cg.pallet.Calls.TypeId)
+	gend, err := cg.tygen.GetType(cg.pallet.Calls.Type.Int64())
 	if err != nil {
 		return err
 	}
-	ty := gend.MType().Ty
-	if tn, err := ty.GetTypeName(); err != nil {
-		return err
-	} else if tn != tdk.TDKVariant {
+	ty := gend.MType().Type
+	if !ty.Def.IsVariant {
 		return fmt.Errorf("Call is not a variant??? %v", ty)
 	}
 
-	tdvariant, err := ty.GetVariant()
-	if err != nil {
-		return err
-	}
+	tdvariant := ty.Def.Variant
 	for _, variant := range tdvariant.Variants {
 		for _, doc := range variant.Docs {
-			cg.F.Comment(doc)
+			cg.F.Comment(string(doc))
 		}
 
 		// Get all the arguments to our method
-		funcName := utils.AsName("Make", variant.Name, "Call")
-		funcArgs := []jen.Code{jen.Id("meta").Op("*").Qual(utils.CTYPES, "Metadata")}
+		funcName := utils.AsName("Make", string(variant.Name), "Call")
+		funcArgs := []jen.Code{}
 		funcArgNames := []string{}
 		var callInd uint32
 		for _, field := range variant.Fields {
-			fGend, err := cg.tygen.GetType(field.TypeId)
+			fGend, err := cg.tygen.GetType(field.Type.Int64())
 			if err != nil {
 				return err
 			}
-			fieldArgs, fieldArgNames, err := cg.tygen.GenerateArgs(fGend, &callInd, field.Name)
+			fieldArgs, fieldArgNames, err := cg.tygen.GenerateArgs(fGend, &callInd, string(field.Name))
 			funcArgs = append(funcArgs, fieldArgs...)
 			funcArgNames = append(funcArgNames, fieldArgNames...)
 		}
@@ -60,7 +54,8 @@ func (cg *CallGenerator) Generate() error {
 		cg.F.Func().Id(funcName).Call(funcArgs...).Call(jen.Qual(utils.CTYPES, "Call"), jen.Error()).BlockFunc(func(g *jen.Group) {
 			g.ReturnFunc(func(g *jen.Group) {
 				// Pass meta and Pallet.func_name first
-				innerCallArgs := []jen.Code{jen.Id("meta"), jen.Lit(fmt.Sprintf("%v.%v", cg.pallet.Name, variant.Name))}
+				metaArg := jen.Op("&").Custom(utils.TypeOpts, cg.tygen.MetaCode())
+				innerCallArgs := []jen.Code{metaArg, jen.Lit(fmt.Sprintf("%v.%v", cg.pallet.Name, variant.Name))}
 				for _, argName := range funcArgNames {
 					innerCallArgs = append(innerCallArgs, jen.Id(argName))
 				}

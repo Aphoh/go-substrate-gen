@@ -33,21 +33,20 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("Error reading json: %v", err.Error())
 	}
-	meta, err := metadata.ParseMetadata(raw)
+	meta, encResp, err := metadata.ParseMetadata(raw)
 	if err != nil {
 		return fmt.Errorf("Error parsing metadata: %v", err.Error())
 	}
-
 	// structure:
 	// ./types/types.go
 	// ./pallets/$PALLET/storage.go
 	// ./pallets/$PALLET/calls.go
 
 	typesPath := path.Join(extPkgPath, "/types")
-	tg := typegen.NewTypeGenerator(&meta, typesPath)
+	tg := typegen.NewTypeGenerator(meta, encResp, typesPath)
 
 	for _, pallet := range meta.Pallets {
-		lowerName := strings.ToLower(pallet.Name)
+		lowerName := strings.ToLower(string(pallet.Name))
 		palletPath := path.Join(extPkgPath, "/"+lowerName)
 		pg := palletgen.NewPalletGenerator(&pallet, &tg)
 

@@ -1,11 +1,8 @@
 package typegen
 
 import (
-	"fmt"
-	"strconv"
-
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 )
 
@@ -15,10 +12,10 @@ type GeneratedType interface {
 	// Actual code that should be rendered when referring to a type
 	Code() *jen.Statement
 	// Parsed type info associated w object
-	MType() *tdk.MType
+	MType() *types.PortableTypeV14
 	// Is a globally referred to field or does it live in another package
-  // E.g. []byte and byte are primitive, ctypes.UCompact is not.
-  // This is used to know when to pass things to SCALE by reference v.s. by value
+	// E.g. []byte and byte are primitive, ctypes.UCompact is not.
+	// This is used to know when to pass things to SCALE by reference v.s. by value
 	IsPrimitive() bool
 }
 
@@ -27,7 +24,7 @@ type GeneratedType interface {
 type Gend struct {
 	Name string
 	Pkg  string
-	MTy  *tdk.MType
+	MTy  *types.PortableTypeV14
 }
 
 // GlobalName implements GeneratedType
@@ -41,7 +38,7 @@ func (eg *Gend) DisplayName() string {
 }
 
 // TypeInfo implements GeneratedType
-func (eg *Gend) MType() *tdk.MType {
+func (eg *Gend) MType() *types.PortableTypeV14 {
 	return eg.MTy
 }
 
@@ -54,9 +51,9 @@ var _ GeneratedType = &Gend{}
 // ArrayGend
 // Represents an array of the inner type
 type ArrayGend struct {
-	Len   string
+	Len   int // use an int so we don't get things like [uint32(0x20)]byte
 	Inner GeneratedType
-	MTy   *tdk.MType
+	MTy   *types.PortableTypeV14
 }
 
 // IsPrimitive implements GeneratedType
@@ -65,17 +62,13 @@ func (ag *ArrayGend) IsPrimitive() bool {
 }
 
 // Info implements GeneratedType
-func (ag *ArrayGend) MType() *tdk.MType {
+func (ag *ArrayGend) MType() *types.PortableTypeV14 {
 	return ag.MTy
 }
 
 // GlobalName implements GeneratedType
 func (ag *ArrayGend) Code() *jen.Statement {
-	intLen, err := strconv.Atoi(ag.Len)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to make array with len=%#v, inner %v", ag.Len, ag.Inner))
-	}
-	return jen.Index(jen.Lit(intLen)).Custom(utils.TypeOpts, ag.Inner.Code()) // adds an [] to the inner type's value
+	return jen.Index(jen.Lit(ag.Len)).Custom(utils.TypeOpts, ag.Inner.Code()) // adds an [] to the inner type's value
 }
 
 // LocalName implements GeneratedType
@@ -89,7 +82,7 @@ var _ GeneratedType = &ArrayGend{}
 // Represents a slice of the inner type
 type SliceGend struct {
 	Inner GeneratedType
-	MTy   *tdk.MType
+	MTy   *types.PortableTypeV14
 }
 
 // IsPrimitive implements GeneratedType
@@ -100,7 +93,7 @@ func (sg *SliceGend) IsPrimitive() bool {
 var _ GeneratedType = &SliceGend{}
 
 // Info implements GeneratedType
-func (sg *SliceGend) MType() *tdk.MType {
+func (sg *SliceGend) MType() *types.PortableTypeV14 {
 	return sg.MTy
 }
 
@@ -116,7 +109,7 @@ func (sg *SliceGend) DisplayName() string {
 
 type PrimitiveGend struct {
 	PrimName string
-	MTy      *tdk.MType
+	MTy      *types.PortableTypeV14
 }
 
 // IsPrimitive implements GeneratedType
@@ -137,6 +130,6 @@ func (pg *PrimitiveGend) DisplayName() string {
 }
 
 // Info implements GeneratedType
-func (pg *PrimitiveGend) MType() *tdk.MType {
+func (pg *PrimitiveGend) MType() *types.PortableTypeV14 {
 	return pg.MTy
 }

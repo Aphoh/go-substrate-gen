@@ -1,19 +1,19 @@
 package typegen
 
 import (
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
-func (tg *TypeGenerator) GenArray(arr *tdk.TDArray, mt *tdk.MType) (GeneratedType, error) {
-	tyGend, err := tg.GetType(arr.TypeId)
+func (tg *TypeGenerator) GenArray(arr *types.Si1TypeDefArray, mt *types.PortableTypeV14) (GeneratedType, error) {
+	tyGend, err := tg.GetType(arr.Type.Int64())
 	if err != nil {
 		return nil, err
 	}
 	g := ArrayGend{
 		Inner: tyGend,
-		Len:   arr.Len,
+		Len:   int(arr.Len),
 		MTy:   mt,
 	}
-	tg.generated[mt.Id] = &g
+	tg.generated[mt.ID.Int64()] = &g
 	return &g, nil
 }

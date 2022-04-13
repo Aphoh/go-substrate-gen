@@ -1,11 +1,11 @@
 package typegen
 
 import (
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
-func (tg *TypeGenerator) GenSequence(seq *tdk.TDSequence, mt *tdk.MType) (GeneratedType, error) {
-	seqG, err := tg.GetType(seq.TypeId)
+func (tg *TypeGenerator) GenSequence(seq *types.Si1TypeDefSequence, mt *types.PortableTypeV14) (GeneratedType, error) {
+	seqG, err := tg.GetType(seq.Type.Int64())
 	if err != nil {
 		return nil, err
 	}
@@ -14,6 +14,6 @@ func (tg *TypeGenerator) GenSequence(seq *tdk.TDSequence, mt *tdk.MType) (Genera
 		MTy:   mt,
 	}
 
-	tg.generated[mt.Id] = g
+	tg.generated[mt.ID.Int64()] = g
 	return g, nil
 }

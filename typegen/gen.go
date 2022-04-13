@@ -3,17 +3,16 @@ package typegen
 import (
 	"fmt"
 
-	"github.com/aphoh/go-substrate-gen/metadata"
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
+	types "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 )
 
 type TypeGenerator struct {
 	F           *jen.File
 	PkgPath     string
-	mtypes      map[string]tdk.MType
-	generated   map[string]GeneratedType
+	mtypes      map[int64]types.PortableTypeV14
+	generated   map[int64]GeneratedType
 	nameCount   map[string]uint32
 	namegenOpts map[string]NamegenOpt
 }
@@ -23,10 +22,15 @@ type NamegenOpt struct {
 	fullPath   bool
 }
 
-func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
-	mtypes := map[string]tdk.MType{}
+const EncMeta = "0x000"
+
+var Meta types.Metadata
+var _ = types.DecodeFromHexString(EncMeta, &Meta)
+
+func NewTypeGenerator(meta *types.MetadataV14, encodedMetadata string, pkgPath string) TypeGenerator {
+	mtypes := map[int64]types.PortableTypeV14{}
 	for _, tdef := range meta.Lookup.Types {
-		mtypes[tdef.Id] = tdef
+		mtypes[tdef.ID.Int64()] = tdef
 	}
 	f := jen.NewFilePath(pkgPath)
 	// Public, Event, Error, Call, Signature <- full path
@@ -43,76 +47,50 @@ func NewTypeGenerator(meta *metadata.MetaRoot, pkgPath string) TypeGenerator {
 		"BoundedVec":     {fullParams: true},
 		"BTreeMap":       {fullParams: true},
 	}
-	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[string]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
+
+	// Put metadata in the header of the types
+	f.Const().Id("encMeta").Op("=").Lit(encodedMetadata)
+	f.Var().Id("Meta").Qual(utils.CTYPES, "Metadata")
+	f.Var().Id("_").Op("=").Qual(utils.CTYPES, "DecodeFromHexString").Call(jen.Id("encMeta"), jen.Op("&").Id("Meta"))
+
+	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[int64]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
+}
+
+func (tg *TypeGenerator) MetaCode() *jen.Statement {
+	return jen.Qual(tg.PkgPath, "Meta")
 }
 
 func (tg *TypeGenerator) GetGenerated() string {
 	return fmt.Sprintf("%#v", tg.F)
 }
 
-func (tg *TypeGenerator) GetType(id string) (GeneratedType, error) {
+func (tg *TypeGenerator) GetType(id int64) (GeneratedType, error) {
 	if v, ok := tg.generated[id]; ok {
 		return v, nil
 	}
 	// gend does not exist, we must generate it
 
 	mt := tg.mtypes[id]
-	tn, err := mt.Ty.GetTypeName()
-	if err != nil {
-		return nil, err
-	}
+	tdef := mt.Type.Def
 
-	switch tn {
-	case tdk.TDKArray:
-		v, err := mt.Ty.GetArray()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenArray(v, &mt)
-	case tdk.TDKBitSequence:
-		bs, err := mt.Ty.GetBitsequence()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenBitsequence(bs, &mt)
-	case tdk.TDKCompact:
-		v, err := mt.Ty.GetCompact()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenCompact(v, &mt)
-	case tdk.TDKComposite:
-		v, err := mt.Ty.GetComposite()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenComposite(v, &mt)
-	case tdk.TDKSequence:
-		v, err := mt.Ty.GetSequence()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenSequence(v, &mt)
-	case tdk.TDKPrimitive:
-		prim, err := mt.Ty.GetPrimitive()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenPrimitive(prim, &mt)
-	case tdk.TDKTuple:
-		tup, err := mt.Ty.GetTuple()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenTuple(tup, &mt)
-	case tdk.TDKVariant:
-		v, err := mt.Ty.GetVariant()
-		if err != nil {
-			return nil, err
-		}
-		return tg.GenVariant(v, &mt)
-	default:
-		return nil, fmt.Errorf("Got bad type name=%v for id=%v\n", tn, id)
+	if tdef.IsArray {
+		return tg.GenArray(&tdef.Array, &mt)
+	} else if tdef.IsBitSequence {
+		return tg.GenBitsequence(&tdef.BitSequence, &mt)
+	} else if tdef.IsCompact {
+		return tg.GenCompact(&tdef.Compact, &mt)
+	} else if tdef.IsComposite {
+		return tg.GenComposite(&tdef.Composite, &mt)
+	} else if tdef.IsSequence {
+		return tg.GenSequence(&tdef.Sequence, &mt)
+	} else if tdef.IsPrimitive {
+		return tg.GenPrimitive(&tdef.Primitive, &mt)
+	} else if tdef.IsTuple {
+		return tg.GenTuple(&tdef.Tuple, &mt)
+	} else if tdef.IsVariant {
+		return tg.GenVariant(&tdef.Variant, &mt)
+	} else {
+		return nil, fmt.Errorf("Got bad type=%v for id=%v\n", tdef, id)
 	}
 }
 
@@ -123,16 +101,16 @@ func reverse(strs []string) (rev []string) {
 	return
 }
 
-func (tg *TypeGenerator) nameFromParams(base []string, params []tdk.MTypeParam) (string, error) {
+func (tg *TypeGenerator) nameFromParams(base []string, params []types.Si1TypeParameter) (string, error) {
 	sName := utils.AsName(base...)
 	for _, p := range params {
-		if p.Type != nil {
-			pgend, err := tg.GetType(*p.Type)
+		if p.HasType {
+			pgend, err := tg.GetType(p.Type.Int64())
 			if err != nil {
 				return "", err
 			}
 			if p.Name != "" {
-				base = append(base, p.Name)
+				base = append(base, string(p.Name))
 			}
 			base = append(base, pgend.DisplayName())
 			sName = utils.AsName(base...)
@@ -141,27 +119,27 @@ func (tg *TypeGenerator) nameFromParams(base []string, params []tdk.MTypeParam) 
 	return sName, nil
 }
 
-func (tg *TypeGenerator) getStructName(mt *tdk.MType) (string, error) {
-	baseName := mt.Ty.Path[len(mt.Ty.Path)-1]
+func (tg *TypeGenerator) getStructName(mt *types.PortableTypeV14) (string, error) {
+	baseName := string(mt.Type.Path[len(mt.Type.Path)-1])
 	opts := tg.namegenOpts[baseName]
 	// by default only take the last elt of the path (the rust struct name)
 	nameWords := []string{baseName}
 	if opts.fullPath {
-		nameWords = mt.Ty.Path
+		nameWords = utils.PathStrs(mt.Type.Path)
 	}
 	sName := utils.AsName(nameWords...)
 
 	var err error
 	if opts.fullParams {
 		// Get the name with all parameters
-		sName, err = tg.nameFromParams(nameWords, mt.Ty.Params)
+		sName, err = tg.nameFromParams(nameWords, mt.Type.Params)
 		if err != nil {
 			return "", err
 		}
 	} else {
 		// Add params, stopping if its unique
-		for i := range mt.Ty.Params {
-			sName, err = tg.nameFromParams(nameWords, mt.Ty.Params[:i])
+		for i := range mt.Type.Params {
+			sName, err = tg.nameFromParams(nameWords, mt.Type.Params[:i])
 			if err != nil {
 				return "", err
 			}
@@ -186,13 +164,9 @@ func (tg *TypeGenerator) getStructName(mt *tdk.MType) (string, error) {
 func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32, namePrefixes ...string) ([]jen.Code, []string, error) {
 	args := []jen.Code{}
 	names := []string{}
-	parsedType := gend.MType().Ty
-	tn, err := parsedType.GetTypeName()
-	if err != nil {
-		return nil, nil, err
-	}
+	parsedType := gend.MType().Type
 
-	if tn != tdk.TDKTuple {
+	if !parsedType.Def.IsTuple {
 		// Not a tuple, just add an argument. Use the index to guarantee uniqueness.
 		name := utils.AsArgName(append(namePrefixes, fmt.Sprint(*index))...)
 
@@ -205,12 +179,9 @@ func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32, namePre
 		}
 		*index += 1
 	} else {
-		tdef, err := parsedType.GetTuple()
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, typeId := range *tdef {
-			gend, err := tg.GetType(typeId)
+		tdef := parsedType.Def.Tuple
+		for _, typeId := range tdef {
+			gend, err := tg.GetType(typeId.Int64())
 			if err != nil {
 				return nil, nil, err
 			}

@@ -2,22 +2,21 @@ package typegen
 
 import (
 	"fmt"
-	"strconv"
 
-	"github.com/aphoh/go-substrate-gen/metadata/tdk"
 	"github.com/aphoh/go-substrate-gen/utils"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
 )
 
 const SCALE = "github.com/centrifuge/go-substrate-rpc-client/v4/scale"
 
-func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedType, error) {
+func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.PortableTypeV14) (GeneratedType, error) {
 	if len(v.Variants) == 0 {
 		g := &PrimitiveGend{
 			PrimName: "struct{}",
 			MTy:      mt,
 		}
-		tg.generated[mt.Id] = g
+		tg.generated[mt.ID.Int64()] = g
 		return g, nil
 	}
 
@@ -30,7 +29,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		Pkg:  tg.PkgPath,
 		MTy:  mt,
 	}
-	tg.generated[mt.Id] = g
+	tg.generated[mt.ID.Int64()] = g
 
 	inner := []jen.Code{}
 
@@ -38,14 +37,14 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 	variantFieldNames := [][]string{}
 
 	for i, variant := range v.Variants {
-		vIsName := utils.AsName("Is", variant.Name)
+		vIsName := utils.AsName("Is", string(variant.Name))
 		variantIsNames = append(variantIsNames, vIsName)
 		inner = append(inner, jen.Id(vIsName).Bool())
 		variantFieldNames = append(variantFieldNames, []string{})
 
 		for j, f := range variant.Fields {
 			useTypeName := len(variant.Fields) > 1
-			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", variant.Name), fmt.Sprint(j), useTypeName)
+			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", string(variant.Name)), fmt.Sprint(j), useTypeName)
 			if err != nil {
 				return nil, err
 			}
@@ -55,7 +54,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 
 	}
 
-	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(mt.Ty.Path...), mt.Id))
+	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(utils.PathStrs(mt.Type.Path)...), mt.ID.Int64()))
 	tg.F.Type().Id(g.Name).Struct(inner...)
 
 	// IMPORTANT: we only implement encode for the actual type, not the pointer (ty *g.name),
@@ -69,10 +68,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		// for each variant, check if variant
 		for i, variant := range v.Variants {
 			// This index is not necessarily the index that it appears at in the list
-			varI, err := strconv.Atoi(variant.Index)
-			if err != nil {
-				panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
-			}
+			varI := uint8(variant.Index)
 			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
@@ -101,10 +97,7 @@ func (tg *TypeGenerator) GenVariant(v *tdk.TDVariant, mt *tdk.MType) (GeneratedT
 		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
 				// This index is not necessarily the index that it appears at in the list
-				varI, err := strconv.Atoi(variant.Index)
-				if err != nil {
-					panic(fmt.Sprintf("Invalid index given in variant %v", variant.Index))
-				}
+				varI := uint8(variant.Index)
 				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
 					g3.Id("ty").Dot(variantIsNames[i]).Op("=").True()
