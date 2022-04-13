@@ -31,7 +31,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	}
 	tg.generated[mt.ID.Int64()] = g
 
-	inner := []jen.Code{jen.Id("variant").Id("uint8")}
+	inner := []jen.Code{}
 
 	variantIsNames := []string{}
 	variantFieldNames := [][]string{}
@@ -69,7 +69,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		// for each variant, check if variant
 		for i, variant := range v.Variants {
 			// This index is not necessarily the index that it appears at in the list
-			varI := uint8(variant.Index)
+			varI := int(variant.Index)
 			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
@@ -93,13 +93,13 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
 		// variant, err := decoder.ReadOneByte()
-		g1.List(jen.Id("ty").Dot("variant"), jen.Err()).Op("=").Id("decoder").Dot("ReadOneByte").Call()
+		g1.List(jen.Id("variant"), jen.Err()).Op(":=").Id("decoder").Dot("ReadOneByte").Call()
 		utils.ErrorCheckG(g1)
 		// switch variant {..}
-		g1.Switch(jen.Id("ty").Dot("variant")).BlockFunc(func(g2 *jen.Group) {
+		g1.Switch(jen.Id("variant")).BlockFunc(func(g2 *jen.Group) {
 			for i, variant := range v.Variants {
 				// This index is not necessarily the index that it appears at in the list
-				varI := uint8(variant.Index)
+				varI := int(variant.Index)
 				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
 					g3.Id("ty").Dot(variantIsNames[i]).Op("=").True()
@@ -119,9 +119,15 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 
 	tg.F.Func().Params(
 		jen.Id("ty").Op("*").Id(g.Name),
-	).Id("Variant").Call().Id("uint8").Block(
-		jen.Return().Id("ty").Dot("variant"),
-	)
+	).Id("Variant").Call().Call(jen.Id("uint8"), jen.Error()).BlockFunc(func(g *jen.Group) {
+		for i, variant := range v.Variants {
+			g.If(jen.Id("ty").Dot(variantIsNames[i])).Block(
+				jen.Return(jen.Lit(int(variant.Index)), jen.Nil()),
+			)
+		}
+		g.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
+
+	})
 
 	return g, nil
 }
