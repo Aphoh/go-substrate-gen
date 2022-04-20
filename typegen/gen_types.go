@@ -1,6 +1,8 @@
 package typegen
 
 import (
+	"fmt"
+
 	"github.com/aphoh/go-substrate-gen/utils"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/dave/jennifer/jen"
@@ -13,10 +15,6 @@ type GeneratedType interface {
 	Code() *jen.Statement
 	// Parsed type info associated w object
 	MType() *types.PortableTypeV14
-	// Is a globally referred to field or does it live in another package
-	// E.g. []byte and byte are primitive, ctypes.UCompact is not.
-	// This is used to know when to pass things to SCALE by reference v.s. by value
-	IsPrimitive() bool
 }
 
 // Gend
@@ -42,10 +40,6 @@ func (eg *Gend) MType() *types.PortableTypeV14 {
 	return eg.MTy
 }
 
-func (eg *Gend) IsPrimitive() bool {
-	return false
-}
-
 var _ GeneratedType = &Gend{}
 
 // ArrayGend
@@ -54,11 +48,6 @@ type ArrayGend struct {
 	Len   int // use an int so we don't get things like [uint32(0x20)]byte
 	Inner GeneratedType
 	MTy   *types.PortableTypeV14
-}
-
-// IsPrimitive implements GeneratedType
-func (ag *ArrayGend) IsPrimitive() bool {
-	return ag.Inner.IsPrimitive()
 }
 
 // Info implements GeneratedType
@@ -85,11 +74,6 @@ type SliceGend struct {
 	MTy   *types.PortableTypeV14
 }
 
-// IsPrimitive implements GeneratedType
-func (sg *SliceGend) IsPrimitive() bool {
-	return sg.Inner.IsPrimitive()
-}
-
 var _ GeneratedType = &SliceGend{}
 
 // Info implements GeneratedType
@@ -112,11 +96,6 @@ type PrimitiveGend struct {
 	MTy      *types.PortableTypeV14
 }
 
-// IsPrimitive implements GeneratedType
-func (*PrimitiveGend) IsPrimitive() bool {
-	return true
-}
-
 var _ GeneratedType = &PrimitiveGend{}
 
 // GlobalName implements GeneratedType
@@ -132,4 +111,25 @@ func (pg *PrimitiveGend) DisplayName() string {
 // Info implements GeneratedType
 func (pg *PrimitiveGend) MType() *types.PortableTypeV14 {
 	return pg.MTy
+}
+
+type VariantGend struct {
+	Gend
+	Indices    []uint8
+	IsVarNames []string
+	AsVarNames [][]string
+}
+
+func (vg *VariantGend) IndOf(variantIndex uint8) (int, error) {
+	var varI int = -1
+	for i := range vg.Indices {
+		if vg.Indices[i] == variantIndex {
+			varI = i
+			break
+		}
+	}
+	if varI == -1 {
+		return 0, fmt.Errorf("Unable to find variant %v in gend %v", variantIndex, vg.DisplayName())
+	}
+	return varI, nil
 }

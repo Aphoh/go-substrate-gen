@@ -24,23 +24,27 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	if err != nil {
 		return nil, err
 	}
-	g := &Gend{
-		Name: sName,
-		Pkg:  tg.PkgPath,
-		MTy:  mt,
+	numVariants := len(v.Variants)
+	vGend := &VariantGend{
+		Gend: Gend{
+			Name: sName,
+			Pkg:  tg.PkgPath,
+			MTy:  mt,
+		},
+		IsVarNames: make([]string, numVariants),
+		AsVarNames: make([][]string, numVariants),
+		Indices:    make([]uint8, numVariants),
 	}
-	tg.generated[mt.ID.Int64()] = g
+	tg.generated[mt.ID.Int64()] = vGend
 
 	inner := []jen.Code{}
 
-	variantIsNames := []string{}
-	variantFieldNames := [][]string{}
-
 	for i, variant := range v.Variants {
 		vIsName := utils.AsName("Is", string(variant.Name))
-		variantIsNames = append(variantIsNames, vIsName)
 		inner = append(inner, jen.Id(vIsName).Bool())
-		variantFieldNames = append(variantFieldNames, []string{})
+
+		vGend.IsVarNames[i] = vIsName
+		vGend.Indices[i] = uint8(variant.Index)
 
 		for j, f := range variant.Fields {
 			useTypeName := len(variant.Fields) > 1
@@ -48,21 +52,21 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 			if err != nil {
 				return nil, err
 			}
-			variantFieldNames[i] = append(variantFieldNames[i], fieldName)
+			vGend.AsVarNames[i] = append(vGend.AsVarNames[i], fieldName)
 			inner = append(inner, fc...)
 		}
 
 	}
 
 	tg.F.Comment(fmt.Sprintf("Generated %v with id=%v", utils.AsName(utils.PathStrs(mt.Type.Path)...), mt.ID.Int64()))
-	tg.F.Type().Id(g.Name).Struct(inner...)
+	tg.F.Type().Id(vGend.Name).Struct(inner...)
 
 	// IMPORTANT: we only implement encode for the actual type, not the pointer (ty *g.name),
 	// because otherwise reflection will fail to see that the object has the method if it's embedded
 	// in another type
 	// func (ty g.name) Encode(encoder scale.Encoder) (err error) {...}
 	tg.F.Func().Params(
-		jen.Id("ty").Id(g.Name),
+		jen.Id("ty").Id(vGend.Name),
 	).Id("Encode").Params(jen.Id("encoder").Qual(SCALE, "Encoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
@@ -70,12 +74,12 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		for i, variant := range v.Variants {
 			// This index is not necessarily the index that it appears at in the list
 			varI := int(variant.Index)
-			g1.If(jen.Id("ty").Dot(variantIsNames[i])).BlockFunc(func(g2 *jen.Group) {
+			g1.If(jen.Id("ty").Dot(vGend.IsVarNames[i])).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
 				utils.ErrorCheckG(g2)
 				for j := range variant.Fields {
-					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(variantFieldNames[i][j]))
+					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(vGend.AsVarNames[i][j]))
 					utils.ErrorCheckG(g2)
 				}
 				// return ok
@@ -88,7 +92,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 
 	// func (ty *g.name) Decode(decoder scale.Decoder) (err error) {...}
 	tg.F.Func().Params(
-		jen.Id("ty").Op("*").Id(g.Name),
+		jen.Id("ty").Op("*").Id(vGend.Name),
 	).Id("Decode").Params(jen.Id("decoder").Qual(SCALE, "Decoder")).Params(
 		jen.Err().Error(),
 	).BlockFunc(func(g1 *jen.Group) {
@@ -102,11 +106,11 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 				varI := int(variant.Index)
 				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
-					g3.Id("ty").Dot(variantIsNames[i]).Op("=").True()
+					g3.Id("ty").Dot(vGend.IsVarNames[i]).Op("=").True()
 					// decode remaining fields
 					for j := range variant.Fields {
 						g3.Err().Op("=").Id("decoder").Dot("Decode").Call(
-							jen.Op("&").Id("ty").Dot(variantFieldNames[i][j]),
+							jen.Op("&").Id("ty").Dot(vGend.AsVarNames[i][j]),
 						)
 						utils.ErrorCheckG(g3)
 					}
@@ -118,16 +122,16 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	})
 
 	tg.F.Func().Params(
-		jen.Id("ty").Op("*").Id(g.Name),
-	).Id("Variant").Call().Call(jen.Id("uint8"), jen.Error()).BlockFunc(func(g *jen.Group) {
+		jen.Id("ty").Op("*").Id(vGend.Name),
+	).Id("Variant").Call().Call(jen.Id("uint8"), jen.Error()).BlockFunc(func(g1 *jen.Group) {
 		for i, variant := range v.Variants {
-			g.If(jen.Id("ty").Dot(variantIsNames[i])).Block(
+			g1.If(jen.Id("ty").Dot(vGend.IsVarNames[i])).Block(
 				jen.Return(jen.Lit(int(variant.Index)), jen.Nil()),
 			)
 		}
-		g.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
+		g1.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
 
 	})
 
-	return g, nil
+	return vGend, nil
 }

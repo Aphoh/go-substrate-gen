@@ -21,16 +21,36 @@ func NewCallGenerator(pkgPath string, pallet *types.PalletMetadataV14, tygen *ty
 }
 
 func (cg *CallGenerator) Generate() error {
-	gend, err := cg.tygen.GetType(cg.pallet.Calls.Type.Int64())
+	baseGend, err := cg.tygen.GetType(cg.pallet.Calls.Type.Int64())
 	if err != nil {
 		return err
 	}
-	ty := gend.MType().Type
-	if !ty.Def.IsVariant {
-		return fmt.Errorf("Call is not a variant??? %v", ty)
+	gend, ok := baseGend.(*typegen.VariantGend)
+	if !ok {
+		return fmt.Errorf("Call type %v for pallet %v is not a variant",
+			gend.MType().ID, cg.pallet.Name)
+	}
+	// Runtime call type
+	rtc, err := cg.tygen.GetCallType()
+	if err != nil {
+		return err
 	}
 
-	tdvariant := ty.Def.Variant
+	// Index of our pallet's index w/in the generated variant
+	runtimeInd, err := rtc.IndOf(uint8(cg.pallet.Index))
+	if err != nil {
+		return err
+	}
+
+	if len(rtc.AsVarNames[runtimeInd]) != 1 {
+		return fmt.Errorf("Pallet call (id=%v) has multiple variant fields in runtime call (id=%v)",
+			gend.MType().ID, rtc.MType().ID)
+	}
+	rtcAsVarName := rtc.AsVarNames[runtimeInd][0]
+	rtcIsVarName := rtc.IsVarNames[runtimeInd]
+
+	// Already checked it's a variant above
+	tdvariant := gend.MType().Type.Def.Variant
 	for _, variant := range tdvariant.Variants {
 		for _, doc := range variant.Docs {
 			cg.F.Comment(string(doc))
@@ -51,16 +71,26 @@ func (cg *CallGenerator) Generate() error {
 			funcArgNames = append(funcArgNames, fieldArgNames...)
 		}
 
-		cg.F.Func().Id(funcName).Call(funcArgs...).Call(jen.Qual(utils.CTYPES, "Call"), jen.Error()).BlockFunc(func(g *jen.Group) {
-			g.ReturnFunc(func(g *jen.Group) {
-				// Pass meta and Pallet.func_name first
-				metaArg := jen.Op("&").Custom(utils.TypeOpts, cg.tygen.MetaCode())
-				innerCallArgs := []jen.Code{metaArg, jen.Lit(fmt.Sprintf("%v.%v", cg.pallet.Name, variant.Name))}
-				for _, argName := range funcArgNames {
-					innerCallArgs = append(innerCallArgs, jen.Id(argName))
-				}
-				// Call with all passed args
-				g.Qual(utils.CTYPES, "NewCall").Call(innerCallArgs...)
+		// Index of this call variant in the pallet call gend
+		gendInd, err := gend.IndOf(uint8(variant.Index))
+		if err != nil {
+			return err
+		}
+
+		cg.F.Func().Id(funcName).Call(funcArgs...).Call(rtc.Code()).BlockFunc(func(g1 *jen.Group) {
+			g1.ReturnFunc(func(g2 *jen.Group) {
+				// return
+				g2.Custom(utils.TypeOpts, rtc.Code()).BlockFunc(func(g3 *jen.Group) {
+					// RuntimeCall {}
+					g3.Id(rtcIsVarName).Op(":").Lit(true).Op(",")
+					g3.Id(rtcAsVarName).Op(":").Custom(utils.TypeOpts, gend.Code()).BlockFunc(func(g4 *jen.Group) {
+						// PalletCall {}
+						g4.Id(gend.IsVarNames[gendInd]).Op(":").Lit(true).Op(",")
+						for i := range gend.AsVarNames[gendInd] {
+							g4.Id(gend.AsVarNames[gendInd][i]).Op(":").Id(funcArgNames[i]).Op(",")
+						}
+					}).Op(",")
+				})
 			})
 		})
 	}

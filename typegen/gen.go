@@ -2,6 +2,7 @@ package typegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aphoh/go-substrate-gen/utils"
 	types "github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -9,8 +10,12 @@ import (
 )
 
 type TypeGenerator struct {
-	F           *jen.File
-	PkgPath     string
+	F       *jen.File
+	PkgPath string
+
+	// Lazily initialized id for the runtime's call type
+	callId *int64
+
 	mtypes      map[int64]types.PortableTypeV14
 	generated   map[int64]GeneratedType
 	nameCount   map[string]uint32
@@ -21,11 +26,6 @@ type NamegenOpt struct {
 	fullParams bool
 	fullPath   bool
 }
-
-const EncMeta = "0x000"
-
-var Meta types.Metadata
-var _ = types.DecodeFromHexString(EncMeta, &Meta)
 
 func NewTypeGenerator(meta *types.MetadataV14, encodedMetadata string, pkgPath string) TypeGenerator {
 	mtypes := map[int64]types.PortableTypeV14{}
@@ -54,6 +54,26 @@ func NewTypeGenerator(meta *types.MetadataV14, encodedMetadata string, pkgPath s
 	f.Var().Id("_").Op("=").Qual(utils.CTYPES, "DecodeFromHexString").Call(jen.Id("encMeta"), jen.Op("&").Id("Meta"))
 
 	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[int64]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
+}
+
+func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
+	if tg.callId == nil {
+		cid, err := getCallTypeId(tg.mtypes)
+		if err != nil {
+			return nil, err
+		}
+		tg.callId = &cid
+	}
+
+	gend, err := tg.GetType(*tg.callId)
+	if err != nil {
+		return nil, err
+	}
+	v, ok := gend.(*VariantGend)
+	if !ok {
+		return nil, fmt.Errorf("Call (id=%v) is not a variant", *tg.callId)
+	}
+	return v, nil
 }
 
 func (tg *TypeGenerator) MetaCode() *jen.Statement {
@@ -92,6 +112,62 @@ func (tg *TypeGenerator) GetType(id int64) (GeneratedType, error) {
 	} else {
 		return nil, fmt.Errorf("Got bad type=%v for id=%v\n", tdef, id)
 	}
+}
+
+// Generates args and they string names from a generated type. This recursively pulls away tuples.
+// Index is the starting index for the argument names (e.g. arg1, arg2...)
+func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32, namePrefixes ...string) ([]jen.Code, []string, error) {
+	args := []jen.Code{}
+	names := []string{}
+	parsedType := gend.MType().Type
+
+	if !parsedType.Def.IsTuple {
+		// Not a tuple, just add an argument. Use the index to guarantee uniqueness.
+		name := utils.AsArgName(append(namePrefixes, fmt.Sprint(*index))...)
+
+		names = append(names, name)
+		args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
+		*index += 1
+	} else {
+		tdef := parsedType.Def.Tuple
+		for _, typeId := range tdef {
+			gend, err := tg.GetType(typeId.Int64())
+			if err != nil {
+				return nil, nil, err
+			}
+			newArgs, newNames, err := tg.GenerateArgs(gend, index, namePrefixes...)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			names = append(names, newNames...)
+			args = append(args, newArgs...)
+		}
+	}
+	return args, names, nil
+}
+
+func (tg *TypeGenerator) GenAll() (string, error) {
+	for id := range tg.mtypes {
+		if _, err := tg.GetType(id); err != nil {
+			println("Got error getting type", "type", id, "err", err.Error())
+		}
+	}
+	return fmt.Sprintf("%#v", tg.F), nil
+}
+
+func getCallTypeId(mtypes map[int64]types.PortableTypeV14) (int64, error) {
+	for tyId, ty := range mtypes {
+		if len(ty.Type.Path) >= 2 {
+			p0 := string(ty.Type.Path[0])
+			p1 := string(ty.Type.Path[1])
+			// Looking for *_runtime::Call
+			if strings.HasSuffix(p0, "_runtime") && p1 == "Call" {
+				return tyId, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("No call type found. Expected a path like *_runtime::Call")
 }
 
 func reverse(strs []string) (rev []string) {
@@ -157,51 +233,4 @@ func (tg *TypeGenerator) getStructName(mt *types.PortableTypeV14) (string, error
 		sName = utils.AsName(sName, fmt.Sprint(tg.nameCount[sName]-1))
 	}
 	return sName, nil
-}
-
-// Generates args and they string names from a generated type. This recursively pulls away tuples.
-// Index is the starting index for the argument names (e.g. arg1, arg2...)
-func (tg *TypeGenerator) GenerateArgs(gend GeneratedType, index *uint32, namePrefixes ...string) ([]jen.Code, []string, error) {
-	args := []jen.Code{}
-	names := []string{}
-	parsedType := gend.MType().Type
-
-	if !parsedType.Def.IsTuple {
-		// Not a tuple, just add an argument. Use the index to guarantee uniqueness.
-		name := utils.AsArgName(append(namePrefixes, fmt.Sprint(*index))...)
-
-		names = append(names, name)
-		if gend.IsPrimitive() {
-			args = append(args, jen.Id(name).Custom(utils.TypeOpts, gend.Code()))
-		} else {
-			// Use a pointer if it's not primitive
-			args = append(args, jen.Id(name).Op("*").Custom(utils.TypeOpts, gend.Code()))
-		}
-		*index += 1
-	} else {
-		tdef := parsedType.Def.Tuple
-		for _, typeId := range tdef {
-			gend, err := tg.GetType(typeId.Int64())
-			if err != nil {
-				return nil, nil, err
-			}
-			newArgs, newNames, err := tg.GenerateArgs(gend, index, namePrefixes...)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			names = append(names, newNames...)
-			args = append(args, newArgs...)
-		}
-	}
-	return args, names, nil
-}
-
-func (tg *TypeGenerator) GenAll() (string, error) {
-	for id := range tg.mtypes {
-		if _, err := tg.GetType(id); err != nil {
-			println("Got error getting type", "type", id, "err", err.Error())
-		}
-	}
-	return fmt.Sprintf("%#v", tg.F), nil
 }
