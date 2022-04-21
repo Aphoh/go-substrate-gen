@@ -25,10 +25,13 @@ func (tg *TypeGenerator) GenComposite(v *types.Si1TypeDefComposite, mt *types.Po
 	if err != nil {
 		return nil, err
 	}
-	g := &Gend{
-		Name: sName,
-		Pkg:  tg.PkgPath,
-		MTy:  mt,
+	g := &CompositeGend{
+		Gend: Gend{
+			Name: sName,
+			Pkg:  tg.PkgPath,
+			MTy:  mt,
+		},
+		Fields: []GenField{},
 	}
 	tg.generated[mt.ID.Int64()] = g
 
@@ -37,20 +40,21 @@ func (tg *TypeGenerator) GenComposite(v *types.Si1TypeDefComposite, mt *types.Po
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.Type.Int64())))
 		// Turns out composites don't have unique names... sob
-		fc, fname, err := tg.fieldCode(field, "", "", false)
+		gf, err := tg.fieldCode(field, "", "", false)
 		if err != nil {
 			return nil, err
 		}
-		fNameCounts[fname] += 1
-		cnt := fNameCounts[fname]
+		fNameCounts[gf.Name] += 1
+		cnt := fNameCounts[gf.Name]
 		if cnt > 1 {
 			// Name already exists, generate a new one with a postfix
-			fc, fname, err = tg.fieldCode(field, "", fmt.Sprint(cnt-1), false)
+			gf, err = tg.fieldCode(field, "", fmt.Sprint(cnt-1), false)
 			if err != nil {
 				return nil, err
 			}
 		}
-		code = append(code, fc...)
+		g.Fields = append(g.Fields, *gf)
+		code = append(code, gf.Code...)
 	}
 
 	// Write new struct with all ids
@@ -61,7 +65,13 @@ func (tg *TypeGenerator) GenComposite(v *types.Si1TypeDefComposite, mt *types.Po
 	return g, nil
 }
 
-func (tg *TypeGenerator) fieldCode(f types.Si1Field, prefix, postfix string, useTypeName bool) ([]jen.Code, string, error) {
+type GenField struct {
+	Name  string
+	IsPtr bool
+	Code  []jen.Code
+}
+
+func (tg *TypeGenerator) fieldCode(f types.Si1Field, prefix, postfix string, useTypeName bool) (*GenField, error) {
 	var fieldName string
 	if f.Name != "" {
 		fieldName = string(f.Name)
@@ -81,16 +91,21 @@ func (tg *TypeGenerator) fieldCode(f types.Si1Field, prefix, postfix string, use
 
 	fieldTy, err := tg.GetType(f.Type.Int64())
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	// Add the field
 	// If it's a rust pointer, use a pointer to avoid recursive structs
-	if strings.HasPrefix(string(f.TypeName), "Box") || strings.HasPrefix(string(f.TypeName), "alloc::boxed::Box") || strings.HasPrefix(string(f.TypeName), "OpaqueCall") {
+	isPtr := strings.HasPrefix(string(f.TypeName), "Box") || strings.HasPrefix(string(f.TypeName), "alloc::boxed::Box") || strings.HasPrefix(string(f.TypeName), "OpaqueCall")
+	if isPtr {
 		code = append(code, jen.Id(fieldName).Op("*").Custom(utils.TypeOpts, fieldTy.Code()))
 	} else {
 		code = append(code, jen.Id(fieldName).Custom(utils.TypeOpts, fieldTy.Code()))
 	}
 
-	return code, fieldName, nil
+	return &GenField{
+		Name:  fieldName,
+		IsPtr: isPtr,
+		Code:  code,
+	}, nil
 }

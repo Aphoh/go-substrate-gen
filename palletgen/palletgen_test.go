@@ -41,7 +41,7 @@ func noTestSamplePalletOutput(t *testing.T) {
 	mr, encMeta, err := metadata.ParseMetadata(inp)
 
 	tg := typegen.NewTypeGenerator(mr, encMeta, "github.com/aphoh/go-substrate-gen/palletgen")
-	palletGen := NewPalletGenerator(&mr.Pallets[6], &tg)
+	palletGen := NewPalletGenerator(&mr.Pallets[26], &tg)
 
 	storage, isSome, err := palletGen.GenerateStorage("github.com/aphoh/go-substrate-gen/palletgen")
 	require.NoError(t, err)

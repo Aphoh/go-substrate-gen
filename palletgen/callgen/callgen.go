@@ -42,12 +42,12 @@ func (cg *CallGenerator) Generate() error {
 		return err
 	}
 
-	if len(rtc.AsVarNames[runtimeInd]) != 1 {
+	if len(rtc.AsVarFields[runtimeInd]) != 1 {
 		return fmt.Errorf("Pallet call (id=%v) has multiple variant fields in runtime call (id=%v)",
 			gend.MType().ID, rtc.MType().ID)
 	}
-	rtcAsVarName := rtc.AsVarNames[runtimeInd][0]
-	rtcIsVarName := rtc.IsVarNames[runtimeInd]
+	rtcAsVarField := rtc.AsVarFields[runtimeInd][0]
+	rtcIsVarField := rtc.IsVarFields[runtimeInd]
 
 	// Already checked it's a variant above
 	tdvariant := gend.MType().Type.Def.Variant
@@ -82,12 +82,16 @@ func (cg *CallGenerator) Generate() error {
 				// return
 				g2.Custom(utils.TypeOpts, rtc.Code()).BlockFunc(func(g3 *jen.Group) {
 					// RuntimeCall {}
-					g3.Id(rtcIsVarName).Op(":").Lit(true).Op(",")
-					g3.Id(rtcAsVarName).Op(":").Custom(utils.TypeOpts, gend.Code()).BlockFunc(func(g4 *jen.Group) {
+					g3.Id(rtcIsVarField.Name).Op(":").Lit(true).Op(",")
+					g3.Id(rtcAsVarField.Name).Op(":").Custom(utils.TypeOpts, gend.Code()).BlockFunc(func(g4 *jen.Group) {
 						// PalletCall {}
-						g4.Id(gend.IsVarNames[gendInd]).Op(":").Lit(true).Op(",")
-						for i := range gend.AsVarNames[gendInd] {
-							g4.Id(gend.AsVarNames[gendInd][i]).Op(":").Id(funcArgNames[i]).Op(",")
+						g4.Id(gend.IsVarFields[gendInd].Name).Op(":").Lit(true).Op(",")
+						for i, fld := range gend.AsVarFields[gendInd] {
+							if fld.IsPtr {
+								g4.Id(fld.Name).Op(": &").Id(funcArgNames[i]).Op(",")
+							} else {
+								g4.Id(fld.Name).Op(":").Id(funcArgNames[i]).Op(",")
+							}
 						}
 					}).Op(",")
 				})

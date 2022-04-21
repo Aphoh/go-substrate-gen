@@ -115,9 +115,9 @@ func (pg *PrimitiveGend) MType() *types.PortableTypeV14 {
 
 type VariantGend struct {
 	Gend
-	Indices    []uint8
-	IsVarNames []string
-	AsVarNames [][]string
+	Indices     []uint8
+	IsVarFields []GenField
+	AsVarFields [][]GenField
 }
 
 func (vg *VariantGend) IndOf(variantIndex uint8) (int, error) {
@@ -132,4 +132,9 @@ func (vg *VariantGend) IndOf(variantIndex uint8) (int, error) {
 		return 0, fmt.Errorf("Unable to find variant %v in gend %v", variantIndex, vg.DisplayName())
 	}
 	return varI, nil
+}
+
+type CompositeGend struct {
+	Gend
+	Fields []GenField
 }

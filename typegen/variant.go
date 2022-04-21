@@ -31,9 +31,9 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 			Pkg:  tg.PkgPath,
 			MTy:  mt,
 		},
-		IsVarNames: make([]string, numVariants),
-		AsVarNames: make([][]string, numVariants),
-		Indices:    make([]uint8, numVariants),
+		IsVarFields: make([]GenField, numVariants),
+		AsVarFields: make([][]GenField, numVariants),
+		Indices:     make([]uint8, numVariants),
 	}
 	tg.generated[mt.ID.Int64()] = vGend
 
@@ -43,17 +43,17 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		vIsName := utils.AsName("Is", string(variant.Name))
 		inner = append(inner, jen.Id(vIsName).Bool())
 
-		vGend.IsVarNames[i] = vIsName
+		vGend.IsVarFields[i] = GenField{Name: vIsName, IsPtr: false}
 		vGend.Indices[i] = uint8(variant.Index)
 
 		for j, f := range variant.Fields {
 			useTypeName := len(variant.Fields) > 1
-			fc, fieldName, err := tg.fieldCode(f, utils.AsName("As", string(variant.Name)), fmt.Sprint(j), useTypeName)
+			gf, err := tg.fieldCode(f, utils.AsName("As", string(variant.Name)), fmt.Sprint(j), useTypeName)
 			if err != nil {
 				return nil, err
 			}
-			vGend.AsVarNames[i] = append(vGend.AsVarNames[i], fieldName)
-			inner = append(inner, fc...)
+			vGend.AsVarFields[i] = append(vGend.AsVarFields[i], *gf)
+			inner = append(inner, gf.Code...)
 		}
 
 	}
@@ -74,12 +74,12 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		for i, variant := range v.Variants {
 			// This index is not necessarily the index that it appears at in the list
 			varI := int(variant.Index)
-			g1.If(jen.Id("ty").Dot(vGend.IsVarNames[i])).BlockFunc(func(g2 *jen.Group) {
+			g1.If(jen.Id("ty").Dot(vGend.IsVarFields[i].Name)).BlockFunc(func(g2 *jen.Group) {
 				// if is variant, encode stuff for variant
 				g2.Err().Op("=").Id("encoder").Dot("PushByte").Call(jen.Lit(varI))
 				utils.ErrorCheckG(g2)
 				for j := range variant.Fields {
-					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(vGend.AsVarNames[i][j]))
+					g2.Id("err").Op("=").Id("encoder").Dot("Encode").Call(jen.Id("ty").Dot(vGend.AsVarFields[i][j].Name))
 					utils.ErrorCheckG(g2)
 				}
 				// return ok
@@ -106,11 +106,11 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 				varI := int(variant.Index)
 				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
-					g3.Id("ty").Dot(vGend.IsVarNames[i]).Op("=").True()
+					g3.Id("ty").Dot(vGend.IsVarFields[i].Name).Op("=").True()
 					// decode remaining fields
 					for j := range variant.Fields {
 						g3.Err().Op("=").Id("decoder").Dot("Decode").Call(
-							jen.Op("&").Id("ty").Dot(vGend.AsVarNames[i][j]),
+							jen.Op("&").Id("ty").Dot(vGend.AsVarFields[i][j].Name),
 						)
 						utils.ErrorCheckG(g3)
 					}
@@ -125,7 +125,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		jen.Id("ty").Op("*").Id(vGend.Name),
 	).Id("Variant").Call().Call(jen.Id("uint8"), jen.Error()).BlockFunc(func(g1 *jen.Group) {
 		for i, variant := range v.Variants {
-			g1.If(jen.Id("ty").Dot(vGend.IsVarNames[i])).Block(
+			g1.If(jen.Id("ty").Dot(vGend.IsVarFields[i].Name)).Block(
 				jen.Return(jen.Lit(int(variant.Index)), jen.Nil()),
 			)
 		}
