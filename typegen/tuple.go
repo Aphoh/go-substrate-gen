@@ -15,6 +15,13 @@ func (tg *TypeGenerator) GenTuple(tup *types.Si1TypeDefTuple, mt *types.Portable
 		g = &PrimitiveGend{PrimName: "struct{}", MTy: mt}
 		tg.generated[mt.ID.Int64()] = g
 		return g, nil
+	} else if len(*tup) == 1 {
+		g, err := tg.GetType((*tup)[0].Int64())
+		if err != nil {
+			return nil, err
+		}
+		tg.generated[mt.ID.Int64()] = g
+		return g, nil
 	}
 
 	tn := utils.AsName("Tuple", fmt.Sprint(mt.ID.Int64()))
