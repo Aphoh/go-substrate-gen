@@ -78,6 +78,10 @@ func run() error {
 			}
 		}
 	}
+	err = tg.GenerateCallHelpers()
+	if err != nil {
+		return err
+	}
 
 	typesDir := filepath.Join(".", "types")
 	os.MkdirAll(typesDir, os.ModePerm)

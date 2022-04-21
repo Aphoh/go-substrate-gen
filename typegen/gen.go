@@ -2,7 +2,6 @@ package typegen
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/aphoh/go-substrate-gen/utils"
 	types "github.com/centrifuge/go-substrate-rpc-client/v4/types"
@@ -54,26 +53,6 @@ func NewTypeGenerator(meta *types.MetadataV14, encodedMetadata string, pkgPath s
 	f.Var().Id("_").Op("=").Qual(utils.CTYPES, "DecodeFromHexString").Call(jen.Id("encMeta"), jen.Op("&").Id("Meta"))
 
 	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[int64]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
-}
-
-func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
-	if tg.callId == nil {
-		cid, err := getCallTypeId(tg.mtypes)
-		if err != nil {
-			return nil, err
-		}
-		tg.callId = &cid
-	}
-
-	gend, err := tg.GetType(*tg.callId)
-	if err != nil {
-		return nil, err
-	}
-	v, ok := gend.(*VariantGend)
-	if !ok {
-		return nil, fmt.Errorf("Call (id=%v) is not a variant", *tg.callId)
-	}
-	return v, nil
 }
 
 func (tg *TypeGenerator) MetaCode() *jen.Statement {
@@ -154,20 +133,6 @@ func (tg *TypeGenerator) GenAll() (string, error) {
 		}
 	}
 	return fmt.Sprintf("%#v", tg.F), nil
-}
-
-func getCallTypeId(mtypes map[int64]types.PortableTypeV14) (int64, error) {
-	for tyId, ty := range mtypes {
-		if len(ty.Type.Path) >= 2 {
-			p0 := string(ty.Type.Path[0])
-			p1 := string(ty.Type.Path[1])
-			// Looking for *_runtime::Call
-			if strings.HasSuffix(p0, "_runtime") && p1 == "Call" {
-				return tyId, nil
-			}
-		}
-	}
-	return 0, fmt.Errorf("No call type found. Expected a path like *_runtime::Call")
 }
 
 func reverse(strs []string) (rev []string) {

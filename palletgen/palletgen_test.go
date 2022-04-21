@@ -53,6 +53,7 @@ func noTestSamplePalletOutput(t *testing.T) {
 	if isSome {
 		ioutil.WriteFile("test_calls.go", []byte(calls), 0644)
 	}
+	require.NoError(t, tg.GenerateCallHelpers())
 	types := tg.GetGenerated()
 
 	ioutil.WriteFile("test_types.go", []byte(types), 0644)
