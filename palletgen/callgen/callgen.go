@@ -27,8 +27,9 @@ func (cg *CallGenerator) Generate() error {
 	}
 	gend, ok := baseGend.(*typegen.VariantGend)
 	if !ok {
-		return fmt.Errorf("Call type %v for pallet %v is not a variant",
-			gend.MType().ID, cg.pallet.Name)
+		fmt.Printf("Warning: Call type %v for pallet %v is not a variant\n",
+			cg.pallet.Calls.Type.Int64(), cg.pallet.Name)
+		return nil
 	}
 	// Runtime call type
 	rtc, err := cg.tygen.GetCallType()

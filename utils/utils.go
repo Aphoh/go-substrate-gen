@@ -9,6 +9,7 @@ import (
 )
 
 const CTYPES = "github.com/centrifuge/go-substrate-rpc-client/v4/types"
+const CCODEC = "github.com/centrifuge/go-substrate-rpc-client/v4/types/codec"
 const GSRPC = "github.com/centrifuge/go-substrate-rpc-client/v4"
 const GSRPCState = "github.com/centrifuge/go-substrate-rpc-client/v4/rpc/state"
 const TupleIface = "TupleIface"

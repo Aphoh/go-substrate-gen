@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types/codec"
 )
 
 type MetaResp struct {
@@ -21,7 +22,7 @@ func ParseMetadata(input []byte) (*types.MetadataV14, string, error) {
 		return nil, "", err
 	}
 	meta := types.Metadata{}
-	err = types.DecodeFromHexString(metaResp.Result, &meta)
+	err = codec.DecodeFromHex(metaResp.Result, &meta)
 	if err != nil {
 		return nil, "", err
 	}

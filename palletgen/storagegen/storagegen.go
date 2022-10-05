@@ -97,7 +97,7 @@ func (sg *StorageGenerator) GenMap(p types.MapTypeV14, item *types.StorageEntryM
 		// var err error
 		g.Var().Err().Error()
 		for _, argName := range keyArgNames {
-			g.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id(argName))
+			g.List(jen.Id("encBytes"), jen.Err()).Op("=").Qual(utils.CCODEC, "Encode").Call(jen.Id(argName))
 			utils.ErrorCheckWithNil(g)
 			g.Id("byteArgs").Op("=").Append(jen.Id("byteArgs"), jen.Id("encBytes"))
 		}
@@ -119,7 +119,7 @@ func (sg *StorageGenerator) GenMap(p types.MapTypeV14, item *types.StorageEntryM
 
 func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string, sKeyArgs []jen.Code, sKeyArgNames []string, returnType typegen.GeneratedType, item *types.StorageEntryMetadataV14) error {
 
-	args := []jen.Code{jen.Id("state").Op("*").Qual(utils.GSRPCState, "State")}
+	args := []jen.Code{jen.Id("state").Qual(utils.GSRPCState, "State")}
 	if withBlockhash {
 		args = append(args, jen.Id("bhash").Qual(utils.CTYPES, "Hash"))
 	}
@@ -171,7 +171,7 @@ func (sg *StorageGenerator) generateGetter(withBlockhash bool, sKeyMethod string
 		if item.Modifier.IsDefault {
 			// If not optional, return the default when isSome is false
 			g.If(jen.Op("!").Id("isSome")).BlockFunc(func(g1 *jen.Group) {
-				g1.Err().Op("=").Qual(utils.CTYPES, "DecodeFromBytes").Call(jen.Id(defaultBytesName), jen.Op("&").Id("ret"))
+				g1.Err().Op("=").Qual(utils.CCODEC, "Decode").Call(jen.Id(defaultBytesName), jen.Op("&").Id("ret"))
 				utils.ErrorCheckWithNamedArgs(g1)
 			})
 		}

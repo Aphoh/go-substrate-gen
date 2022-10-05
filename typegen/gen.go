@@ -50,7 +50,7 @@ func NewTypeGenerator(meta *types.MetadataV14, encodedMetadata string, pkgPath s
 	// Put metadata in the header of the types
 	f.Const().Id("encMeta").Op("=").Lit(encodedMetadata)
 	f.Var().Id("Meta").Qual(utils.CTYPES, "Metadata")
-	f.Var().Id("_").Op("=").Qual(utils.CTYPES, "DecodeFromHexString").Call(jen.Id("encMeta"), jen.Op("&").Id("Meta"))
+	f.Var().Id("_").Op("=").Qual(utils.CCODEC, "DecodeFromHex").Call(jen.Id("encMeta"), jen.Op("&").Id("Meta"))
 
 	return TypeGenerator{F: f, PkgPath: pkgPath, mtypes: mtypes, generated: map[int64]GeneratedType{}, nameCount: map[string]uint32{}, namegenOpts: ng}
 }

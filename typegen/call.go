@@ -41,7 +41,7 @@ func (tg *TypeGenerator) GenerateCallHelpers() error {
 	).Id("AsCall").Call().Parens(jen.List(jen.Id("ret").Qual(utils.CTYPES, "Call"), jen.Err().Error())).BlockFunc(func(g1 *jen.Group) {
 		g1.Var().Id("cb").Index().Byte() // var cb []byte
 		// cb, err = types.EncodeToBytes(c)
-		g1.List(jen.Id("cb"), jen.Err()).Op("=").Qual(utils.CTYPES, "EncodeToBytes").Call(jen.Id("c"))
+		g1.List(jen.Id("cb"), jen.Err()).Op("=").Qual(utils.CCODEC, "Encode").Call(jen.Id("c"))
 		utils.ErrorCheckWithNamedArgs(g1)
 
 		var a byte

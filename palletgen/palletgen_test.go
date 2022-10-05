@@ -11,8 +11,8 @@ import (
 )
 
 // TODO: better method for testing
-func TestGenBigMetadata(t *testing.T) {
-	inp, err := ioutil.ReadFile("../polka-meta.json")
+func noTestGenBigMetadata(t *testing.T) {
+	inp, err := ioutil.ReadFile("../polkadot-meta.json")
 	require.NoError(t, err)
 	mr, encMeta, err := metadata.ParseMetadata(inp)
 
