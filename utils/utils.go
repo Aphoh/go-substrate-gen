@@ -63,30 +63,39 @@ func PathStrs(p types.Si1Path) (r []string) {
 // These functions operate on Jennifer groups. See here for documentation:
 // https://github.com/dave/jennifer#func-methods
 
+// Generate an error check
+//
 // output:
-// if err != nil {
-//   return err
-// }
+//
+//	if err != nil {
+//		return err
+//	}
 func ErrorCheckG(s *jen.Group) {
 	s.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.Err()),
 	)
 }
 
+// Generate an error check for a function that returns (ptr, err)
+//
 // output:
-// if err != nil {
-//   return nil, err
-// }
+//
+//	if err != nil {
+//		return nil, err
+//	}
 func ErrorCheckWithNil(s *jen.Group) {
 	s.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(jen.List(jen.Nil(), jen.Err())),
 	)
 }
 
+// Generate an error check for a function with named return values
+//
 // output:
-// if err != nil {
-//   return
-// }
+//
+//	if err != nil {
+//		return
+//	}
 func ErrorCheckWithNamedArgs(s *jen.Group) {
 	s.If(jen.Err().Op("!=").Nil()).Block(
 		jen.Return(),

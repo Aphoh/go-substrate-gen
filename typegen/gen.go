@@ -8,8 +8,14 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+// The type generator is used to generate all types necessary to support the storage accesses and
+// extrinsics provided by the pallets of the substrate chain. It gradually builds a mapping from IDs
+// (indexes within the metadata types list) to generated types. It is also used to generate unique
+// names for certain purposes.
 type TypeGenerator struct {
-	F       *jen.File
+	// A jen file which every generated type gets written to
+	F *jen.File
+	// The path to the 'types' path in which to generate all types
 	PkgPath string
 
 	// Lazily initialized id for the runtime's call type

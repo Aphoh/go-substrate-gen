@@ -14,13 +14,14 @@ const SCALE = "github.com/centrifuge/go-substrate-rpc-client/v4/scale"
 // define the struct in `types/types.go`, as well as define an `Encode`, `Decode`, and `Variant`
 // method on it.
 //
-// For a variant that is either varA or varB, the go struct will look like
-// type {name} struct {
-//   IsVarAFieldName bool
-//   AsVarAFieldName VarAType
-//   IsVarBFieldName bool
-//   AsVarBFieldName VarBType
-// }
+// example variant:
+//
+//	type Result struct {
+//		IsOk        bool
+//		AsOkField0  struct{}
+//		IsErr       bool
+//		AsErrField0 DispatchError
+//	}
 func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.PortableTypeV14) (GeneratedType, error) {
 	if len(v.Variants) == 0 {
 		g := &PrimitiveGend{
@@ -84,7 +85,35 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	return vGend, nil
 }
 
-// Generate the encode function for a variant
+// Generate the encode function for a variant.
+//
+// example output:
+//
+//	func (ty Result) Encode(encoder scale.Encoder) (err error) {
+//		if ty.IsOk {
+//			err = encoder.PushByte(0)
+//			if err != nil {
+//				return err
+//			}
+//			err = encoder.Encode(ty.AsOkField0)
+//			if err != nil {
+//				return err
+//			}
+//			return nil
+//		}
+//		if ty.IsErr {
+//			err = encoder.PushByte(1)
+//			if err != nil {
+//				return err
+//			}
+//			err = encoder.Encode(ty.AsErrField0)
+//			if err != nil {
+//				return err
+//			}
+//			return nil
+//		}
+//		return fmt.Errorf("Unrecognized variant")
+//	}
 func (tg *TypeGenerator) variantGenEncode(v *types.Si1TypeDefVariant, vGend *VariantGend) {
 	// IMPORTANT: we only implement encode for the actual type, not the pointer (ty *g.name),
 	// because otherwise reflection will fail to see that the object has the method if it's embedded
@@ -118,6 +147,33 @@ func (tg *TypeGenerator) variantGenEncode(v *types.Si1TypeDefVariant, vGend *Var
 }
 
 // Generate the decode function for a variant
+//
+// example output:
+//
+//	func (ty *Result) Decode(decoder scale.Decoder) (err error) {
+//	 	variant, err := decoder.ReadOneByte()
+//	 	if err != nil {
+//	 		return err
+//	 	}
+//	 	switch variant {
+//	 	case 0:
+//	 		ty.IsOk = true
+//	 		err = decoder.Decode(&ty.AsOkField0)
+//	 		if err != nil {
+//	 			return err
+//	 		}
+//	 		return
+//	 	case 1:
+//	 		ty.IsErr = true
+//	 		err = decoder.Decode(&ty.AsErrField0)
+//	 		if err != nil {
+//	 			return err
+//	 		}
+//	 		return
+//	 	default:
+//	 		return fmt.Errorf("Unrecognized variant")
+//	 	}
+//	}
 func (tg *TypeGenerator) variantGenDecode(v *types.Si1TypeDefVariant, vGend *VariantGend) {
 	// func (ty *g.name) Decode(decoder scale.Decoder) (err error) {...}
 	tg.F.Func().Params(
@@ -154,6 +210,18 @@ func (tg *TypeGenerator) variantGenDecode(v *types.Si1TypeDefVariant, vGend *Var
 
 // Generate the 'Variant' function for a variant. This function takes in the variant, and returns
 // the variant index
+//
+// example output:
+//
+//	 func (ty *Result) Variant() (uint8, error) {
+//	 	if ty.IsOk {
+//	 		return 0, nil
+//	 	}
+//	 	if ty.IsErr {
+//	 		return 1, nil
+//	 	}
+//	 	return 0, fmt.Errorf("No variant detected")
+//	 }
 func (tg *TypeGenerator) variantGenVariant(v *types.Si1TypeDefVariant, vGend *VariantGend) {
 	tg.F.Func().Params(
 		jen.Id("ty").Op("*").Id(vGend.Name),

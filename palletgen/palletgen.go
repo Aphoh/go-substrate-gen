@@ -9,6 +9,8 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
+// The palletgenerator is responsible for determing if a pallet needs storage or calls generated,
+// and generating them if necessary with a StorageGenerator or CallGenerator.
 type PalletGenerator struct {
 	pallet *types.PalletMetadataV14
 	tygen  *typegen.TypeGenerator
@@ -18,6 +20,7 @@ func NewPalletGenerator(pallet *types.PalletMetadataV14, tygen *typegen.TypeGene
 	return PalletGenerator{pallet: pallet, tygen: tygen}
 }
 
+// Generate all storage calls for the pallet, and return the file as a string
 func (rg *PalletGenerator) GenerateStorage(pkgFilePath string) (string, bool, error) {
 	if !rg.pallet.HasStorage {
 		return "", false, nil
@@ -31,6 +34,7 @@ func (rg *PalletGenerator) GenerateStorage(pkgFilePath string) (string, bool, er
 	return fmt.Sprintf("%#v", sgen.F), true, nil
 }
 
+// Generate all calls (extrinsics) for the pallet, and return the file as a string
 func (rg *PalletGenerator) GenerateCalls(pkgFilePath string) (string, bool, error) {
 	if !rg.pallet.HasCalls {
 		return "", false, nil

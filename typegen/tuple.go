@@ -41,7 +41,7 @@ func (tg *TypeGenerator) GenTuple(tup *types.Si1TypeDefTuple, mt *types.Portable
 	// Generate the tuple definition in the `types/types.go` file
 
 	// Example for mt.ID=121, and the original tuple looks like (int, [32]byte)
-	// output:
+	// example output:
 	// // Tuple type 121
 	// type Tuple121 struct {
 	//   Elem0 int

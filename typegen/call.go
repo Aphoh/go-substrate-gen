@@ -9,6 +9,14 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+// Get the RuntimeCall type for this chain. The RuntimeCall type will always be a variant, and it embeds each pallet's calls.
+// example (shortened) output:
+// type TakumiRuntimeCall struct {
+//   IsSystem                      bool
+//   AsSystemField0                FrameSystemPalletCall
+//   IsTimestamp                   bool
+//   AsTimestampField0             PalletTimestampPalletCall
+// }
 func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 	if tg.callId == nil {
 		cid, err := getCallTypeId(tg.mtypes)
@@ -29,12 +37,33 @@ func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 	return v, nil
 }
 
+// Generate a function named `AsCall` on the chain runtime calls that converts the chain runtime
+// calls into go-substrate-rpc calls by codec-encoding our call.
+//
+// example output:
+//
+//	func (c *TakumiRuntimeCall) AsCall() (ret types.Call, err error) {
+//		var cb []byte
+//		cb, err = codec.Encode(c)
+//		if err != nil {
+//			return
+//		}
+//		ret = types.Call{
+//			CallIndex: types.CallIndex{
+//				SectionIndex: cb[0],
+//				MethodIndex:  cb[1],
+//			},
+//			Args: cb[2:],
+//		}
+//		return
+//}
 func (tg *TypeGenerator) GenerateCallHelpers() error {
 	callGend, err := tg.GetCallType()
 	if err != nil {
 		return err
 	}
 
+	// The follow three lines output:
 	//func (c *RuntimeCall) AsCall() (ctypes.Call, error) {}
 	tg.F.Func().Parens(
 		jen.Id("c").Op("*").Custom(utils.TypeOpts, callGend.Code()),
@@ -48,6 +77,15 @@ func (tg *TypeGenerator) GenerateCallHelpers() error {
 		var b byte
 		_ = types.Call{CallIndex: types.CallIndex{SectionIndex: a, MethodIndex: b}}
 
+		// output:
+		// ret = types.Call{
+		//			CallIndex: types.CallIndex{
+		//				SectionIndex: cb[0],
+		//				MethodIndex:  cb[1],
+		//			},
+		//			Args: cb[2:],
+		//		}
+		//		return
 		g1.Id("ret").Op("=").Qual(utils.CTYPES, "Call").BlockFunc(func(g2 *jen.Group) {
 			g2.Id("CallIndex").Op(":").Qual(utils.CTYPES, "CallIndex").BlockFunc(func(g3 *jen.Group) {
 				g3.Id("SectionIndex").Op(":").Id("cb").Index(jen.Lit(0)).Op(",")
@@ -55,7 +93,6 @@ func (tg *TypeGenerator) GenerateCallHelpers() error {
 			}).Op(",")
 			g2.Id("Args").Op(":").Id("cb").Index(jen.Lit(2).Op(":")).Op(",")
 		})
-
 		g1.Return()
 	})
 	return nil
