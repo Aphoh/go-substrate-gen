@@ -31,6 +31,9 @@ go-substrate-gen meta.json "github.com/my/package/submodule/for/code"
 There is code included under `json-gen` to fetch a human-readable version of the json from a locally running substrate node in dev mode.
 View [the readme](json-gen/README.md) for instructions.
 
+### Architecture and Design
+Please read the [documentation](doc/architecture.md), which describes the received metadata's structure, and also gives an overview of the code's structure.
+
 ### Calling code
 Example for `pallet_balances`
 

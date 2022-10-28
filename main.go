@@ -34,6 +34,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("error reading json: %v", err.Error())
 	}
+	// go-substrate-rpc-client parsed metadata
 	meta, encResp, err := metadata.ParseMetadata(raw)
 	if err != nil {
 		return fmt.Errorf("error parsing metadata: %v", err.Error())
