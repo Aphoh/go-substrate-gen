@@ -11,7 +11,7 @@ import (
 
 // Get the RuntimeCall type for this chain. The RuntimeCall type will always be a variant, and it embeds each pallet's calls.
 // example (shortened) output:
-// type TakumiRuntimeCall struct {
+// type TemplateRuntimeCall struct {
 //   IsSystem                      bool
 //   AsSystemField0                FrameSystemPalletCall
 //   IsTimestamp                   bool
@@ -42,7 +42,7 @@ func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 //
 // example output:
 //
-//	func (c *TakumiRuntimeCall) AsCall() (ret types.Call, err error) {
+//	func (c *TemplateRuntimeCall) AsCall() (ret types.Call, err error) {
 //		var cb []byte
 //		cb, err = codec.Encode(c)
 //		if err != nil {

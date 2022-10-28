@@ -73,8 +73,8 @@ func (cg *CallGenerator) Generate() error {
 
 // Generate a function to call a particular pallet extrinsic.
 // example output (docs omitted):
-// func MakeSetKeyCall(new0 types.MultiAddress) types.TakumiRuntimeCall {
-//   return types.TakumiRuntimeCall{
+// func MakeSetKeyCall(new0 types.MultiAddress) types.TemplateRuntimeCall {
+//   return types.TemplateRuntimeCall{
 // 	   IsSudo: true,
 // 	   AsSudoField0: types.PalletSudoPalletCall{
 // 		 IsSetKey:     true,
