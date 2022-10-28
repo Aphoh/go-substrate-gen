@@ -41,8 +41,8 @@ which requires
 The overall approach used is very simple:
 
 1. Parse the metadata returned from the `state.getMetadata` RPC endpoint by any substrate chain.
-1. Create a type generator which caches generated types
-1. For each pallet in the parsed metadata:
+2. Create a type generator which caches generated types
+3. For each pallet in the parsed metadata:
     - For each extrinsic in the pallet:
         - Look at all scale types needed, and recursively generate go code to represent them
         - Generate a go struct which contains all information needed for the extrinsic
@@ -53,7 +53,7 @@ The overall approach used is very simple:
         - Generate a go struct that contains the storage information in that storage item
         - Generate a function to retrieve the storage information using rpc
     - Write all of the storage item functions to `pallet/storage.go`
-1. Write all of the generated types to `types/types.go`
+4. Write all of the generated types to `types/types.go`
 
 However, there is some complexity involved in the structure of the returned metadata and the translation of scale types to golang.
 
@@ -151,7 +151,7 @@ In the metadata, pallets are also listed in an array, with each having some fiel
     "events": {...},
     "constants": {...},
     "errors": {...},
-    "index": ...
+    "index": "..."
   },
   ...
 ]
