@@ -23,6 +23,8 @@ import (
 //	IsI128 = 13
 //	IsI256 = 14
 
+// Generate and return a go primitive, or a defined type in the case of SCALE primitives that are
+// not primitives in go (uint128, uint256, int128, int256)
 func (tg *TypeGenerator) GenPrimitive(primitive *types.Si1TypeDefPrimitive, mt *types.PortableTypeV14) (GeneratedType, error) {
 	var g GeneratedType
 	switch primitive.Si0TypeDefPrimitive {
@@ -41,12 +43,14 @@ func (tg *TypeGenerator) GenPrimitive(primitive *types.Si1TypeDefPrimitive, mt *
 	case types.IsU64:
 		g = &PrimitiveGend{PrimName: "uint64", MTy: mt}
 	case types.IsU128:
+		// Uint128 is not a primitive in go
 		g = &Gend{
 			Name: "U128",
 			Pkg:  utils.CTYPES,
 			MTy:  mt,
 		}
 	case types.IsU256:
+		// Uint256 is not a primitive in go
 		g = &Gend{
 			Name: "U256",
 			Pkg:  utils.CTYPES,
@@ -61,19 +65,21 @@ func (tg *TypeGenerator) GenPrimitive(primitive *types.Si1TypeDefPrimitive, mt *
 	case types.IsI64:
 		g = &PrimitiveGend{PrimName: "int64", MTy: mt}
 	case types.IsI128:
+		// int128 is not a primitive in go
 		g = &Gend{
 			Name: "I128",
 			Pkg:  utils.CTYPES,
 			MTy:  mt,
 		}
 	case types.IsI256:
+		// int256 is not a primitive in go
 		g = &Gend{
 			Name: "I256",
 			Pkg:  utils.CTYPES,
 			MTy:  mt,
 		}
 	default:
-		return nil, fmt.Errorf("Unsupported primitive %s", string(primitive.Si0TypeDefPrimitive))
+		return nil, fmt.Errorf("unsupported primitive %s", string(primitive.Si0TypeDefPrimitive))
 	}
 	tg.generated[mt.ID.Int64()] = g
 	return g, nil

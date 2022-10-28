@@ -11,4 +11,3 @@ const main = async () => {
 }
 
 main().catch(console.error).finally(() => process.exit())
-//

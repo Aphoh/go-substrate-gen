@@ -24,7 +24,7 @@ func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 	}
 	v, ok := gend.(*VariantGend)
 	if !ok {
-		return nil, fmt.Errorf("Call (id=%v) is not a variant", *tg.callId)
+		return nil, fmt.Errorf("call (id=%v) is not a variant", *tg.callId)
 	}
 	return v, nil
 }
@@ -61,6 +61,7 @@ func (tg *TypeGenerator) GenerateCallHelpers() error {
 	return nil
 }
 
+// Get the index of the runtime's call type within the metadata's type array
 func getCallTypeId(mtypes map[int64]types.PortableTypeV14) (int64, error) {
 	for tyId, ty := range mtypes {
 		if len(ty.Type.Path) >= 2 {
@@ -72,5 +73,5 @@ func getCallTypeId(mtypes map[int64]types.PortableTypeV14) (int64, error) {
 			}
 		}
 	}
-	return 0, fmt.Errorf("No call type found. Expected a path like *_runtime::Call")
+	return 0, fmt.Errorf("no call type found. Expected a path like *_runtime::Call")
 }

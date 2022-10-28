@@ -23,19 +23,20 @@ func main() {
 func run() error {
 	args := os.Args[1:]
 	if len(args) < 2 {
-		return fmt.Errorf("Expected two arguments (json path, package name)")
+		return fmt.Errorf("expected two arguments (json path, package name)")
 	}
 	jsonPath := args[0]
+	// Fully qualified external package path
 	extPkgPath := args[1]
 
 	// Parse metadata
 	raw, err := ioutil.ReadFile(jsonPath)
 	if err != nil {
-		return fmt.Errorf("Error reading json: %v", err.Error())
+		return fmt.Errorf("error reading json: %v", err.Error())
 	}
 	meta, encResp, err := metadata.ParseMetadata(raw)
 	if err != nil {
-		return fmt.Errorf("Error parsing metadata: %v", err.Error())
+		return fmt.Errorf("error parsing metadata: %v", err.Error())
 	}
 	// structure:
 	// ./types/types.go
@@ -53,28 +54,28 @@ func run() error {
 		fp := filepath.Join(".", lowerName)
 		err = os.MkdirAll(fp, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("Error creating pallet %v path: %v", pallet.Name, err)
+			return fmt.Errorf("error creating pallet %v path: %v", pallet.Name, err)
 		}
 
 		storage, isSome, err := pg.GenerateStorage(palletPath)
 		if err != nil {
-			return fmt.Errorf("Error generating storage for pallet %v: %v", pallet.Name, err)
+			return fmt.Errorf("error generating storage for pallet %v: %v", pallet.Name, err)
 		}
 		if isSome {
 			err = ioutil.WriteFile(filepath.Join(fp, "storage.go"), []byte(storage), 0644)
 			if err != nil {
-				return fmt.Errorf("Error writing storage.go for pallet %v: %v", pallet.Name, err)
+				return fmt.Errorf("error writing storage.go for pallet %v: %v", pallet.Name, err)
 			}
 		}
 
 		calls, isSome, err := pg.GenerateCalls(palletPath)
 		if err != nil {
-			return fmt.Errorf("Error generating calls for pallet %v: %v", pallet.Name, err)
+			return fmt.Errorf("error generating calls for pallet %v: %v", pallet.Name, err)
 		}
 		if isSome {
 			err = ioutil.WriteFile(filepath.Join(fp, "calls.go"), []byte(calls), 0644)
 			if err != nil {
-				return fmt.Errorf("Error writing calls.go for pallet %v: %v", pallet.Name, err)
+				return fmt.Errorf("error writing calls.go for pallet %v: %v", pallet.Name, err)
 			}
 		}
 	}
