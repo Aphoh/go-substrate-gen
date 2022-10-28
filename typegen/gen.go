@@ -163,7 +163,6 @@ func (tg *TypeGenerator) GenAll() (string, error) {
 func (tg *TypeGenerator) nameFromParams(base []string, params []types.Si1TypeParameter) (string, error) {
 	sName := utils.AsName(base...)
 	for _, p := range params {
-		// ASKWILL: When will the param not have a type? Is that for generics without constraints?
 		if p.HasType {
 			pgend, err := tg.GetType(p.Type.Int64())
 			if err != nil {
