@@ -22,6 +22,6 @@ func (tg *TypeGenerator) GenBitsequence(bs *types.Si1TypeDefBitSequence, mt *typ
 		return &g, nil
 
 	default:
-		return nil, fmt.Errorf("Bitsequence with nonprimitive type %v, typeid=%v", v.DisplayName(), mt.ID.Int64())
+		return nil, fmt.Errorf("bitsequence with nonprimitive type %v, typeid=%v", v.DisplayName(), mt.ID.Int64())
 	}
 }

@@ -9,8 +9,10 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
+// Generate and return a go struct that corresponds to a rust struct
 func (tg *TypeGenerator) GenComposite(v *types.Si1TypeDefComposite, mt *types.PortableTypeV14) (GeneratedType, error) {
-	// Handle structs that just wrap, no need to over-wrap
+
+	// Handle structs that just wrap by collapsing them, no need to over-wrap
 	if len(v.Fields) == 1 {
 		f0 := v.Fields[0]
 		g, err := tg.GetType(f0.Type.Int64())
@@ -36,6 +38,8 @@ func (tg *TypeGenerator) GenComposite(v *types.Si1TypeDefComposite, mt *types.Po
 	tg.generated[mt.ID.Int64()] = g
 
 	code := []jen.Code{}
+	// Field names are not necessarily unique within a struct, so we have to be careful and allow
+	// appended numbering to ensure uniqueness. This map keeps track of that
 	fNameCounts := map[string]uint32{}
 	for i, field := range v.Fields {
 		code = append(code, jen.Comment(fmt.Sprintf("Field %d with TypeId=%v", i, field.Type.Int64())))
@@ -71,6 +75,7 @@ type GenField struct {
 	Code  []jen.Code
 }
 
+// Generate and return a struct field
 func (tg *TypeGenerator) fieldCode(f types.Si1Field, prefix, postfix string, useTypeName bool) (*GenField, error) {
 	var fieldName string
 	if f.Name != "" {
