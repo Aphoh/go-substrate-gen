@@ -81,6 +81,7 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 	tg.variantGenEncode(v, vGend)
 	tg.variantGenDecode(v, vGend)
 	tg.variantGenVariant(v, vGend)
+	tg.variantGenMarshalJson(v, vGend)
 
 	return vGend, nil
 }
@@ -233,5 +234,68 @@ func (tg *TypeGenerator) variantGenVariant(v *types.Si1TypeDefVariant, vGend *Va
 		}
 		g1.Return(jen.Lit(0), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
 
+	})
+}
+
+// Generate the 'MarshalJSON' function for a variant. This function takes in the variant, and returns
+// a json version of it, nicely handling variants
+//
+// example output:
+//
+//	 func (ty Result) MarshalJSON() ([]byte, error) {
+//	 	if ty.IsOk {
+//      m := map[string]interface{}{
+//          "Result::Ok": ty.AsOkField0,
+//          }
+//      }
+//	 		return json.Marshal(m)
+//	 	}
+//	 	if ty.IsErr {
+//      m := map[string]interface{}{
+//          "Result::Err": ty.AsErrField0,
+//      }
+//	 		return json.Marshal(m)
+//	 	}
+//	 	return nil, fmt.Errorf("No variant detected")
+//	 }
+func (tg *TypeGenerator) variantGenMarshalJson(v *types.Si1TypeDefVariant, vGend *VariantGend) {
+	tg.F.Func().Params(
+		jen.Id("ty").Id(vGend.Name),
+	).Id("MarshalJSON").Call().Call(jen.Index().Byte(), jen.Error()).BlockFunc(func(g1 *jen.Group) {
+		for i := range v.Variants {
+			fullName := jen.Lit(fmt.Sprintf("%s::%s", vGend.Name, v.Variants[i].Name))
+			// if ty.Var
+			g1.If(jen.Id("ty").Dot(vGend.IsVarFields[i].Name)).BlockFunc(
+				func(g2 *jen.Group) {
+					// If there's no associated data, just return the name of the variant
+					if len(vGend.AsVarFields[i]) == 0 {
+						g2.Return(jen.Qual("encoding/json", "Marshal").Call(fullName))
+					} else {
+						// Otherwise make a map that has the variant name as a key and associated data as the value
+						// m := map[string]interface{}{...}
+						g2.Id("m").Op(":=").Map(jen.String()).Interface().Values(jen.DictFunc(
+							func(d1 jen.Dict) {
+								if len(vGend.AsVarFields[i]) == 1 {
+									// If there's only one piece of associated data, set that as the value
+									// "Result::Ok": ty.AsOkField0
+									d1[fullName] = jen.Id("ty").Dot(vGend.AsVarFields[i][0].Name)
+								} else {
+									// Otherwise, embed them in a another map[string]interface{}
+									d1[fullName] = jen.Map(jen.String()).Interface().Values(jen.DictFunc(
+										func(d2 jen.Dict) {
+											for j := range vGend.AsVarFields[i] {
+												d2[jen.Lit(vGend.AsVarFields[i][j].Name)] = jen.Id("ty").Dot(vGend.AsVarFields[i][j].Name)
+											}
+										}),
+									)
+								}
+							}),
+						)
+						g2.Return(jen.Qual("encoding/json", "Marshal").Call(jen.Id("m")))
+					}
+				},
+			)
+		}
+		g1.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
 	})
 }
