@@ -11,12 +11,13 @@ import (
 
 // Get the RuntimeCall type for this chain. The RuntimeCall type will always be a variant, and it embeds each pallet's calls.
 // example (shortened) output:
-// type TemplateRuntimeCall struct {
-//   IsSystem                      bool
-//   AsSystemField0                FrameSystemPalletCall
-//   IsTimestamp                   bool
-//   AsTimestampField0             PalletTimestampPalletCall
-// }
+//
+//	type RuntimeCall struct {
+//	  IsSystem                      bool
+//	  AsSystemField0                FrameSystemPalletCall
+//	  IsTimestamp                   bool
+//	  AsTimestampField0             PalletTimestampPalletCall
+//	}
 func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 	if tg.callId == nil {
 		cid, err := getCallTypeId(tg.mtypes)
@@ -42,21 +43,21 @@ func (tg *TypeGenerator) GetCallType() (*VariantGend, error) {
 //
 // example output:
 //
-//	func (c *TemplateRuntimeCall) AsCall() (ret types.Call, err error) {
-//		var cb []byte
-//		cb, err = codec.Encode(c)
-//		if err != nil {
+//		func (c *RuntimeCall) AsCall() (ret types.Call, err error) {
+//			var cb []byte
+//			cb, err = codec.Encode(c)
+//			if err != nil {
+//				return
+//			}
+//			ret = types.Call{
+//				CallIndex: types.CallIndex{
+//					SectionIndex: cb[0],
+//					MethodIndex:  cb[1],
+//				},
+//				Args: cb[2:],
+//			}
 //			return
-//		}
-//		ret = types.Call{
-//			CallIndex: types.CallIndex{
-//				SectionIndex: cb[0],
-//				MethodIndex:  cb[1],
-//			},
-//			Args: cb[2:],
-//		}
-//		return
-//}
+//	}
 func (tg *TypeGenerator) GenerateCallHelpers() error {
 	callGend, err := tg.GetCallType()
 	if err != nil {
@@ -105,10 +106,10 @@ func getCallTypeId(mtypes map[int64]types.PortableTypeV14) (int64, error) {
 			p0 := string(ty.Type.Path[0])
 			p1 := string(ty.Type.Path[1])
 			// Looking for *_runtime::Call
-			if strings.HasSuffix(p0, "_runtime") && p1 == "Call" {
+			if strings.HasSuffix(p0, "_runtime") && p1 == "RuntimeCall" {
 				return tyId, nil
 			}
 		}
 	}
-	return 0, fmt.Errorf("no call type found. Expected a path like *_runtime::Call")
+	return 0, fmt.Errorf("no call type found. Expected a path like *_runtime::RuntimeCall")
 }
