@@ -73,15 +73,16 @@ func (cg *CallGenerator) Generate() error {
 
 // Generate a function to call a particular pallet extrinsic.
 // example output (docs omitted):
-// func MakeSetKeyCall(new0 types.MultiAddress) types.TemplateRuntimeCall {
-//   return types.TemplateRuntimeCall{
-// 	   IsSudo: true,
-// 	   AsSudoField0: types.PalletSudoPalletCall{
-// 		 IsSetKey:     true,
-// 		 AsSetKeyNew0: new0,
-// 	   },
-// 	 }
-// }
+//
+//	func MakeSetKeyCall(new0 types.MultiAddress) types.RuntimeCall {
+//	  return types.RuntimeCall{
+//		   IsSudo: true,
+//		   AsSudoField0: types.PalletSudoPalletCall{
+//			 IsSetKey:     true,
+//			 AsSetKeyNew0: new0,
+//		   },
+//		 }
+//	}
 func (cg *CallGenerator) generateCall(variant types.Si1Variant, gend, rtc *typegen.VariantGend, rtcIsVarName, rtcAsVarName string) error {
 	for _, doc := range variant.Docs {
 		cg.F.Comment(string(doc))
