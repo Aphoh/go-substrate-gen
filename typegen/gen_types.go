@@ -61,9 +61,9 @@ func (ag *ArrayGend) Code() *jen.Statement {
 	return jen.Index(jen.Lit(ag.Len)).Custom(utils.TypeOpts, ag.Inner.Code()) // adds an [len] to the inner type's value
 }
 
-// The display name is just InnerTypeArray
+// The display name is just InnerTypeArray{Len}
 func (ag *ArrayGend) DisplayName() string {
-	return utils.AsName(ag.Inner.DisplayName(), "Array")
+	return utils.AsName(ag.Inner.DisplayName(), "Array", fmt.Sprint(ag.Len))
 }
 
 var _ GeneratedType = &ArrayGend{}

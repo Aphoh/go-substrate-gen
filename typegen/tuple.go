@@ -27,9 +27,34 @@ func (tg *TypeGenerator) GenTuple(tup *types.Si1TypeDefTuple, mt *types.Portable
 		return g, nil
 	}
 
-	// We just name tuples based off their metadata id, as that is guaranteed to be unique, and
-	// could help with debugging
-	tn := utils.AsName("Tuple", fmt.Sprint(mt.ID.Int64()))
+	var tn string
+	if len(*tup) == 2 {
+		// Name tuples of only 2 elements based on their interior elements and order
+		// TupleOf{Type1Name}{Type2Name}
+		g1, err := tg.GetType((*tup)[0].Int64())
+		if err != nil {
+			return nil, err
+		}
+		g2, err := tg.GetType((*tup)[1].Int64())
+		if err != nil {
+			return nil, err
+		}
+		// Although this name is almost certainly unique, it may still not be totally unique, so we
+		// may need to add an integer postfix
+		tn = utils.AsName("TupleOf", g1.DisplayName(), g2.DisplayName())
+
+		if tg.nameCount[tn] == 0 {
+			tg.nameCount[tn] = 1
+		} else {
+			tg.nameCount[tn] += 1
+			tn = utils.AsName(tn, fmt.Sprint(tg.nameCount[tn]-1))
+		}
+	} else {
+		// We name longer tuples based off their metadata id, as that is guaranteed to be unique, and
+		// could help with debugging
+		tn = utils.AsName("Tuple", fmt.Sprint(mt.ID.Int64()))
+	}
+
 	g = &Gend{
 		Name: tn,
 		Pkg:  tg.PkgPath,
@@ -43,7 +68,7 @@ func (tg *TypeGenerator) GenTuple(tup *types.Si1TypeDefTuple, mt *types.Portable
 	// Example for mt.ID=121, and the original tuple looks like (int, [32]byte)
 	// example output:
 	// // Tuple type 121
-	// type Tuple121 struct {
+	// type TupleOfIntByteArray32 struct {
 	//   Elem0 int
 	//   Elem1 [32]byte
 	// }
@@ -56,7 +81,7 @@ func (tg *TypeGenerator) GenTuple(tup *types.Si1TypeDefTuple, mt *types.Portable
 		fName := utils.AsName("Elem", fmt.Sprint(i))
 		code = append(code, jen.Id(fName).Custom(utils.TypeOpts, ty.Code()))
 	}
-	tg.F.Comment(fmt.Sprintf("Tuple type %v", mt.ID.Int64()))
+	tg.F.Comment(fmt.Sprintf("Tuple type generated from metadata id %v", mt.ID.Int64()))
 	tg.F.Type().Id(tn).Struct(code...)
 	return g, nil
 }
