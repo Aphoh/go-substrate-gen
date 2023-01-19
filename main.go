@@ -13,6 +13,8 @@ import (
 	"github.com/aphoh/go-substrate-gen/typegen"
 )
 
+const VERSION = "0.7.0"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Printf("%v\n", err.Error())
@@ -22,6 +24,14 @@ func main() {
 
 func run() error {
 	args := os.Args[1:]
+	// check for --version / -v
+	for _, arg := range args {
+		if arg == "-v" || arg == "--version" {
+			fmt.Printf("go-substrate-gen version %s\n", VERSION)
+			return nil
+		}
+	}
+
 	if len(args) < 2 {
 		return fmt.Errorf("expected two arguments (json path, package name)")
 	}
