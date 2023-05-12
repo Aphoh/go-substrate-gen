@@ -13,7 +13,7 @@ import (
 	"github.com/aphoh/go-substrate-gen/typegen"
 )
 
-const VERSION = "0.7.0"
+const VERSION = "0.8.0"
 
 func main() {
 	if err := run(); err != nil {

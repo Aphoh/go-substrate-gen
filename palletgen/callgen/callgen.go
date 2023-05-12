@@ -66,7 +66,7 @@ func (cg *CallGenerator) Generate() error {
 	// Each variant of our pallet call type corresponds to a particular extrinsic of our pallet, so
 	// we generate a call for each
 	for _, variant := range tdvariant.Variants {
-		cg.generateCall(variant, gend, rtc, rtcIsVarField.Name, rtcAsVarField.Name)
+		cg.generateCall(variant, gend, rtc, rtcIsVarField.Name, rtcAsVarField)
 	}
 	return nil
 }
@@ -83,7 +83,7 @@ func (cg *CallGenerator) Generate() error {
 //		   },
 //		 }
 //	}
-func (cg *CallGenerator) generateCall(variant types.Si1Variant, gend, rtc *typegen.VariantGend, rtcIsVarName, rtcAsVarName string) error {
+func (cg *CallGenerator) generateCall(variant types.Si1Variant, gend, rtc *typegen.VariantGend, rtcIsVarName string, rtcAsVarField typegen.GenField) error {
 	for _, doc := range variant.Docs {
 		cg.F.Comment(string(doc))
 	}
@@ -100,6 +100,9 @@ func (cg *CallGenerator) generateCall(variant types.Si1Variant, gend, rtc *typeg
 			return err
 		}
 		fieldArgs, fieldArgNames, err := cg.tygen.GenerateArgs(fGend, &callInd, string(field.Name))
+		if err != nil {
+			return err
+		}
 		funcArgs = append(funcArgs, fieldArgs...)
 		funcArgNames = append(funcArgNames, fieldArgNames...)
 	}
@@ -117,7 +120,11 @@ func (cg *CallGenerator) generateCall(variant types.Si1Variant, gend, rtc *typeg
 			g2.Custom(utils.TypeOpts, rtc.Code()).BlockFunc(func(g3 *jen.Group) {
 				// RuntimeCall {}
 				g3.Id(rtcIsVarName).Op(":").Lit(true).Op(",")
-				g3.Id(rtcAsVarName).Op(":").Custom(utils.TypeOpts, gend.Code()).BlockFunc(func(g4 *jen.Group) {
+				pre := g3.Id(rtcAsVarField.Name).Op(":")
+				if rtcAsVarField.IsPtr {
+					pre.Op("&")
+				}
+				pre.Custom(utils.TypeOpts, gend.Code()).BlockFunc(func(g4 *jen.Group) {
 					// PalletCall {}
 					g4.Id(gend.IsVarFields[gendInd].Name).Op(":").Lit(true).Op(",")
 					for i, fld := range gend.AsVarFields[gendInd] {
