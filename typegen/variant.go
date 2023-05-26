@@ -58,12 +58,14 @@ func (tg *TypeGenerator) GenVariant(v *types.Si1TypeDefVariant, mt *types.Portab
 		vGend.IsVarFields[i] = GenField{Name: vIsName, IsPtr: false}
 		vGend.Indices[i] = uint8(variant.Index)
 
+		usePtr, _, _ := tg.variantFieldUsesPointer(variant)
+
 		// There may be many fields in a variant, as rust enums can have values that are full on structs
 		// In that case, instead of the struct going: isVarA, varAField, isVarB ..., it instead goes
 		// isVarA, varAField0, varAField1, .., varAFieldn, isVarB, etc
 		for j, f := range variant.Fields {
 			useTypeName := len(variant.Fields) > 1
-			gf, err := tg.fieldCode(f, utils.AsName("As", string(variant.Name)), fmt.Sprint(j), useTypeName)
+			gf, err := tg.fieldCode(f, utils.AsName("As", string(variant.Name)), fmt.Sprint(j), useTypeName, usePtr)
 			if err != nil {
 				return nil, err
 			}
@@ -194,12 +196,23 @@ func (tg *TypeGenerator) variantGenDecode(v *types.Si1TypeDefVariant, vGend *Var
 				g2.Case(jen.Lit(varI)).BlockFunc(func(g3 *jen.Group) {
 					// ty.isVariantI = true
 					g3.Id("ty").Dot(vGend.IsVarFields[i].Name).Op("=").True()
-					// decode remaining fields
-					for j := range variant.Fields {
+
+					isPtr, fieldTy, _ := tg.variantFieldUsesPointer(variant)
+					if isPtr {
+						g3.Var().Id("tmp").Custom(utils.TypeOpts, fieldTy.Code())
 						g3.Err().Op("=").Id("decoder").Dot("Decode").Call(
-							jen.Op("&").Id("ty").Dot(vGend.AsVarFields[i][j].Name),
+							jen.Op("&").Id("tmp"),
 						)
 						utils.ErrorCheckG(g3)
+						g3.Id("ty").Dot(vGend.AsVarFields[i][0].Name).Op("=").Op("&").Id("tmp")
+					} else {
+						// decode remaining fields
+						for j := range variant.Fields {
+							g3.Err().Op("=").Id("decoder").Dot("Decode").Call(
+								jen.Op("&").Id("ty").Dot(vGend.AsVarFields[i][j].Name),
+							)
+							utils.ErrorCheckG(g3)
+						}
 					}
 					g3.Return()
 				})
@@ -214,15 +227,15 @@ func (tg *TypeGenerator) variantGenDecode(v *types.Si1TypeDefVariant, vGend *Var
 //
 // example output:
 //
-//	 func (ty *Result) Variant() (uint8, error) {
-//	 	if ty.IsOk {
-//	 		return 0, nil
-//	 	}
-//	 	if ty.IsErr {
-//	 		return 1, nil
-//	 	}
-//	 	return 0, fmt.Errorf("No variant detected")
-//	 }
+//	func (ty *Result) Variant() (uint8, error) {
+//		if ty.IsOk {
+//			return 0, nil
+//		}
+//		if ty.IsErr {
+//			return 1, nil
+//		}
+//		return 0, fmt.Errorf("No variant detected")
+//	}
 func (tg *TypeGenerator) variantGenVariant(v *types.Si1TypeDefVariant, vGend *VariantGend) {
 	tg.F.Func().Params(
 		jen.Id("ty").Op("*").Id(vGend.Name),
@@ -242,22 +255,22 @@ func (tg *TypeGenerator) variantGenVariant(v *types.Si1TypeDefVariant, vGend *Va
 //
 // example output:
 //
-//	 func (ty Result) MarshalJSON() ([]byte, error) {
-//	 	if ty.IsOk {
-//      m := map[string]interface{}{
-//          "Result::Ok": ty.AsOkField0,
-//          }
-//      }
-//	 		return json.Marshal(m)
-//	 	}
-//	 	if ty.IsErr {
-//      m := map[string]interface{}{
-//          "Result::Err": ty.AsErrField0,
-//      }
-//	 		return json.Marshal(m)
-//	 	}
-//	 	return nil, fmt.Errorf("No variant detected")
-//	 }
+//		 func (ty Result) MarshalJSON() ([]byte, error) {
+//		 	if ty.IsOk {
+//	     m := map[string]interface{}{
+//	         "Result::Ok": ty.AsOkField0,
+//	         }
+//	     }
+//		 		return json.Marshal(m)
+//		 	}
+//		 	if ty.IsErr {
+//	     m := map[string]interface{}{
+//	         "Result::Err": ty.AsErrField0,
+//	     }
+//		 		return json.Marshal(m)
+//		 	}
+//		 	return nil, fmt.Errorf("No variant detected")
+//		 }
 func (tg *TypeGenerator) variantGenMarshalJson(v *types.Si1TypeDefVariant, vGend *VariantGend) {
 	tg.F.Func().Params(
 		jen.Id("ty").Id(vGend.Name),
@@ -298,4 +311,19 @@ func (tg *TypeGenerator) variantGenMarshalJson(v *types.Si1TypeDefVariant, vGend
 		}
 		g1.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit("No variant detected")))
 	})
+}
+
+// We only make variant fields into pointers if the embedded field is also a variant
+// This helps to reduce the size of the most egregious offenders -- events and runtimecalls
+func (tg *TypeGenerator) variantFieldUsesPointer(variant types.Si1Variant) (bool, GeneratedType, error) {
+	if len(variant.Fields) != 1 {
+		return false, nil, nil
+	}
+
+	innerType, err := tg.GetType(variant.Fields[0].Type.Int64())
+	if err != nil {
+		return false, nil, err
+	}
+
+	return innerType.MType().Type.Def.IsVariant, innerType, nil
 }
