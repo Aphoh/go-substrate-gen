@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,9 +12,11 @@ import (
 	"github.com/aphoh/go-substrate-gen/metadata"
 	"github.com/aphoh/go-substrate-gen/palletgen"
 	"github.com/aphoh/go-substrate-gen/typegen"
+	"github.com/aphoh/go-substrate-gen/versiongen"
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
-const VERSION = "0.8.0"
+const VERSION = "0.8.1"
 
 func main() {
 	if err := run(); err != nil {
@@ -23,21 +26,45 @@ func main() {
 }
 
 func run() error {
-	args := os.Args[1:]
-	// check for --version / -v
-	for _, arg := range args {
-		if arg == "-v" || arg == "--version" {
-			fmt.Printf("go-substrate-gen version %s\n", VERSION)
-			return nil
+	var jsonPath string
+	var extPkgPath string
+	var retVersion bool
+	var retHelp bool
+	var chainVersionPath string
+
+	flag.StringVar(&jsonPath, "json-path", "", "The path to the scale-encoded metadata.")
+	flag.StringVar(&extPkgPath, "ext-pkg-path", "", "The fully-qualified external package path.")
+	flag.BoolVar(&retVersion, "version", false, "Print the version of go-substrate-gen and return.")
+	flag.BoolVar(&retHelp, "help", false, "Print the help for go-substrate-gen and return.")
+	flag.StringVar(&chainVersionPath, "chain-version-path", "", "The path to the json blob containing the version of the substrate chain.")
+
+	flag.Parse()
+
+	if retVersion {
+		fmt.Printf("go-substrate-gen version %s\n", VERSION)
+		return nil
+	}
+	if retHelp {
+		flag.Usage()
+		return nil
+	}
+
+	argIdx := 0
+	if jsonPath == "" {
+		jsonPath = flag.Arg(argIdx)
+		argIdx += 1
+		if jsonPath == "" {
+			return fmt.Errorf("json-path is mandatory as either a positional or named argument")
 		}
 	}
 
-	if len(args) < 2 {
-		return fmt.Errorf("expected two arguments (json path, package name)")
+	if extPkgPath == "" {
+		extPkgPath = flag.Arg(argIdx)
+		argIdx += 1
+		if extPkgPath == "" {
+			return fmt.Errorf("ext-pkg-path is mandatory as either a positional or named argument")
+		}
 	}
-	jsonPath := args[0]
-	// Fully qualified external package path
-	extPkgPath := args[1]
 
 	// Parse metadata
 	raw, err := ioutil.ReadFile(jsonPath)
@@ -49,10 +76,38 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("error parsing metadata: %v", err.Error())
 	}
+
+	// Parse chain version
+	var chainVersion *types.RuntimeVersion
+	if chainVersionPath != "" {
+		cvRaw, err := ioutil.ReadFile(chainVersionPath)
+		if err != nil {
+			return fmt.Errorf("error reading chain version json: %v", err.Error())
+		}
+		chainVersion, err = metadata.ParseVersion(cvRaw)
+		if err != nil {
+			return fmt.Errorf("error parsing chain version json: %v", err.Error())
+		}
+	}
+
 	// structure:
+	// (OPTIONAL) ./version/version.go
 	// ./types/types.go
 	// ./pallets/$PALLET/storage.go
 	// ./pallets/$PALLET/calls.go
+
+	if chainVersion != nil {
+		versionPath := path.Join(extPkgPath, "/version")
+		versDir := filepath.Join(".", "version")
+		os.MkdirAll(versDir, os.ModePerm)
+		versionGen := versiongen.NewVersionGenerator(versionPath, *chainVersion)
+		versFp := filepath.Join(versDir, "version.go")
+		typesGenerated, err := versionGen.Generate()
+		if err != nil {
+			return fmt.Errorf("error parsing version information: %v", err.Error())
+		}
+		ioutil.WriteFile(versFp, []byte(typesGenerated), 0644)
+	}
 
 	typesPath := path.Join(extPkgPath, "/types")
 	tg := typegen.NewTypeGenerator(meta, encResp, typesPath)
